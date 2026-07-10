@@ -54,6 +54,33 @@ public CI; contributors do not need it.
 Numbers from different readers/judges are **never** co-ranked. See
 [comparability.md](comparability.md) for the segmentation rule and why.
 
+## Groups (A vs B): is there an LLM in the memory pipeline?
+
+Every row carries a `group` label — a two-way classification of the **memory system
+under test**, based on a single question: does it invoke a generative LLM anywhere
+inside its own pipeline?
+
+- **Group A — no generative LLM in the memory pipeline.** `ingest` and `search` use no
+  generative model (embeddings and classical retrieval do not count as generative-LLM
+  use). `system_config.memory_pipeline_llms` is empty.
+- **Group B — an LLM in the memory pipeline.** The memory layer invokes a generative LLM
+  somewhere in `ingest` or `search` — for example to transform, summarise, or
+  restructure what it stores at write time, or to select or rerank at retrieval time.
+  Every such use is listed in `system_config.memory_pipeline_llms`.
+
+This labels the **memory layer only**. The reader and judge LLMs live in the runner, not
+the memory layer (see [The run protocol](#the-run-protocol)), so they are **not** what
+`group` refers to — every row uses a reader and a judge regardless of group (the specific
+reader/judge snapshot is itself a comparability axis, below).
+
+Why disclose it: a memory layer that uses a generative LLM and one that does not are
+different classes of system on cost, latency, and privacy, so a fair read needs to know
+which is which. `group` is a descriptive label on each row, **not** a separate ranking
+bucket: the board segments and ranks rows by their comparability key (reader, judge,
+scorer, dataset, and split — see [Comparability](#comparability) for the exact tuple), and
+a single segment may contain rows from either group — the label tells you *how* a system
+reaches its number, compared on equal footing within the same comparability segment.
+
 ## Metric semantics (benchmark-owned — pointer)
 
 > The precise metric definitions (what `overall_micro`, `macro`, the abstention subset,
