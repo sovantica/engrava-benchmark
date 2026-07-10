@@ -1,0 +1,10 @@
+{
+  "components": [
+    "config.json",
+    "hypotheses.jsonl",
+    "judge_labels.jsonl",
+    "retrieval_log.jsonl"
+  ],
+  "n": 500,
+  "result_id": "lme-s_engrava_0.5.0_2026-07-10"
+}
