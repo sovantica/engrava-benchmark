@@ -5,7 +5,7 @@
   "system_version": "0.5.0",
   "tier": "engrava",
   "provenance": "sovantica-run",
-  "verification_status": "unverified",
+  "verification_status": "verified",
   "benchmark": "longmemeval",
   "benchmark_version": "v1",
   "dataset_revision": "longmemeval_s_cleaned@sha256:d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442",

@@ -1,5 +1,104 @@
 {
   "schema_version": "1.0",
-  "segments": [],
-  "row_count": 0
+  "segments": [
+    {
+      "comparability": {
+        "benchmark": "longmemeval",
+        "benchmark_version": "v1",
+        "dataset_revision": "longmemeval_s_cleaned@sha256:d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442",
+        "split": "s_full_500",
+        "reader_snapshot": "gpt-4o-2024-08-06",
+        "reader_endpoint": "api.openai.com",
+        "judge_snapshot": "gpt-4o-2024-08-06",
+        "judge_endpoint": "api.openai.com",
+        "scorer_version": "longmemeval@9e0b455f4ef0e2ab8f2e582289761153549043fc"
+      },
+      "rows": [
+        {
+          "schema_version": "1.0",
+          "result_id": "lme-s_engrava_0.5.0_2026-07-10",
+          "system": "Engrava",
+          "system_version": "0.5.0",
+          "tier": "engrava",
+          "provenance": "sovantica-run",
+          "verification_status": "verified",
+          "benchmark": "longmemeval",
+          "benchmark_version": "v1",
+          "dataset_revision": "longmemeval_s_cleaned@sha256:d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442",
+          "split": "s_full_500",
+          "partial": false,
+          "date": "2026-07-10",
+          "engrava_version": "0.5.0",
+          "engrava_dist_hash": "sha256:bff06751b1cfe35a344ac1596e876b7d382014eb3b6a6c0e62701fcb9ead9e63",
+          "runner_commit": "engrava-benchmark@0d1fde5",
+          "system_config": {
+            "adapter": "engrava_adapter",
+            "embedder": "text-embedding-3-small",
+            "embedder_endpoint": "api.openai.com",
+            "memory_pipeline_llms": [],
+            "params": {
+              "embedder_spec": "openai:text-embedding-3-small"
+            }
+          },
+          "group": "A",
+          "reader_model": "gpt-4o",
+          "reader_snapshot": "gpt-4o-2024-08-06",
+          "reader_endpoint": "api.openai.com",
+          "reader_sampling": {
+            "temperature": 0.0
+          },
+          "judge_model": "gpt-4o",
+          "judge_snapshot": "gpt-4o-2024-08-06",
+          "judge_endpoint": "api.openai.com",
+          "scorer_version": "longmemeval@9e0b455f4ef0e2ab8f2e582289761153549043fc",
+          "reader_version": "longmemeval@9e0b455f4ef0e2ab8f2e582289761153549043fc",
+          "retriever": "search_hybrid",
+          "granularity": "turn",
+          "top_k": 20,
+          "ingestion_regime": "one-thought-per-user-turn",
+          "metrics": {
+            "overall_micro": 0.824,
+            "macro": 0.8257583060214638,
+            "abstention": {
+              "accuracy": 0.7333333333333333,
+              "n": 30
+            },
+            "per_category": {
+              "single-session-user": {
+                "accuracy": 1.0,
+                "n": 70
+              },
+              "single-session-assistant": {
+                "accuracy": 0.8928571428571429,
+                "n": 56
+              },
+              "single-session-preference": {
+                "accuracy": 0.6666666666666666,
+                "n": 30
+              },
+              "knowledge-update": {
+                "accuracy": 0.8461538461538461,
+                "n": 78
+              },
+              "temporal-reasoning": {
+                "accuracy": 0.8345864661654135,
+                "n": 133
+              },
+              "multi-session": {
+                "accuracy": 0.7142857142857143,
+                "n": 133
+              }
+            }
+          },
+          "n": 500,
+          "reproduction_artifact_url": "results/longmemeval-s/engrava/lme-s_engrava_0.5.0_2026-07-10/",
+          "artifact_checksum": "sha256:3d5e53b13da80cdb4c42f60091ff920ba48003aca313e3230d0232f5667460e1",
+          "artifact_license": "MIT",
+          "citation": null,
+          "notes": ""
+        }
+      ]
+    }
+  ],
+  "row_count": 1
 }
