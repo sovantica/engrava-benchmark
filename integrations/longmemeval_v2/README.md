@@ -70,6 +70,16 @@ method entry to upstream `evaluation/run_eval.py`.
 The leaderboard package can still infer the method from folder names or from the
 `--method engrava` override in `leaderboard/build_submission_step_1_single_operating_point.py`.
 
+## Public Artifact Hygiene
+
+Do not commit raw LongMemEval-V2 run folders to this repository by default.
+Upstream run outputs can contain per-question memory context, prompt messages,
+gold answers, raw responses, runtime inputs, and absolute local paths.
+
+Before adding any LongMemEval-V2 result artifact to `engrava-benchmark`, remove
+local filesystem paths and keep only reviewed public data. Public files should
+use repo-relative paths, upstream-package-relative paths, or checksums.
+
 ## Smoke Path
 
 Use a tiny question limit before any paid run:

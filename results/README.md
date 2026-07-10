@@ -68,3 +68,13 @@ config) are committed in this tree beside their result row. The row records a
 repo-relative `reproduction_artifact_url` such as
 `results/longmemeval-s/engrava/<result_id>/` plus `artifact_checksum`. Validation
 recomputes that checksum from the sibling directory.
+
+## Path hygiene
+
+Public artifacts must not record local filesystem paths. Local checkout paths,
+home-directory paths, storage/cache paths, scratch paths, runtime output paths,
+and endpoint-local file paths are data leaks in this repository.
+
+Use repo-relative paths for committed artifacts and URLs. If an upstream
+benchmark output requires absolute local paths for execution, keep that raw
+output outside this repository or sanitize it before publication.
