@@ -1,0 +1,28 @@
+# Dependabot — version-updates config
+# See: https://docs.github.com/code-security/dependabot/dependabot-version-updates
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "chore"
+      include: scope
+    ignore:
+      # numpy>=2.2 ships 3.12+ stub syntax that breaks mypy on the py311 target
+      # (numpy is pinned to 2.1.3 in pyproject.toml for exactly this reason).
+      - dependency-name: "numpy"
+        versions: [">=2.2"]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore"
+      include: scope

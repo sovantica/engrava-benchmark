@@ -1,0 +1,28 @@
+name: Branch Name Guard
+
+on:
+  pull_request:
+    types: [opened, reopened, edited, synchronize]
+
+jobs:
+  check:
+    name: Validate branch name
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Validate shape
+        env:
+          BRANCH: ${{ github.head_ref }}
+        run: |
+          KEBAB='^(feature|fix|chore|docs|style|refactor|perf|test|build|ci|revert|content|results)/[a-z0-9-]+$'
+          SEMVER='^(release|hotfix)/v[0-9]+\.[0-9]+\.[0-9]+(-[a-z0-9.-]+)?(\+[a-z0-9.-]+)?$'
+          DEPENDABOT='^dependabot/[a-z0-9_./-]+$'
+          if [[ ! "$BRANCH" =~ $KEBAB && ! "$BRANCH" =~ $SEMVER && ! "$BRANCH" =~ $DEPENDABOT ]]; then
+            echo "Invalid branch name: '$BRANCH'. See BRANCHING.md."
+            exit 1
+          fi
+          if [[ ! "$BRANCH" =~ $DEPENDABOT && ${#BRANCH} -gt 50 ]]; then
+            echo "Branch name too long (${#BRANCH} chars, max 50): '$BRANCH'"
+            exit 1
+          fi
+          echo "Branch shape OK: '$BRANCH'"

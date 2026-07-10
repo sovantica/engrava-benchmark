@@ -1,0 +1,220 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/sovantica/engrava-benchmark/results/schema/results.schema.json",
+  "title": "engrava-benchmark result",
+  "description": "One machine-readable benchmark result. Pins every axis that affects the number so a third party can reproduce it with the public package. Forward-compatible: provenance/citation fields are present even though sovantica-run rows are the only kind currently produced.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "result_id",
+    "system",
+    "system_version",
+    "tier",
+    "provenance",
+    "verification_status",
+    "benchmark",
+    "benchmark_version",
+    "dataset_revision",
+    "split",
+    "partial",
+    "date",
+    "engrava_version",
+    "engrava_dist_hash",
+    "runner_commit",
+    "system_config",
+    "group",
+    "reader_model",
+    "reader_snapshot",
+    "reader_endpoint",
+    "reader_sampling",
+    "judge_model",
+    "judge_snapshot",
+    "judge_endpoint",
+    "scorer_version",
+    "retriever",
+    "granularity",
+    "top_k",
+    "ingestion_regime",
+    "metrics",
+    "n",
+    "reproduction_artifact_url",
+    "artifact_checksum",
+    "artifact_license",
+    "citation"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0" },
+    "result_id": {
+      "type": "string",
+      "description": "Stable, immutable render key.",
+      "minLength": 1
+    },
+    "system": { "type": "string", "minLength": 1 },
+    "system_version": { "type": "string", "minLength": 1 },
+    "tier": { "type": "string", "enum": ["engrava"] },
+    "provenance": {
+      "type": "string",
+      "enum": ["sovantica-run", "vendor-reported", "community-submitted"]
+    },
+    "verification_status": {
+      "type": "string",
+      "enum": ["verified", "pending", "unverified"]
+    },
+
+    "benchmark": { "type": "string", "minLength": 1 },
+    "benchmark_version": { "type": "string", "minLength": 1 },
+    "dataset_revision": { "type": "string", "minLength": 1 },
+    "split": { "type": "string", "minLength": 1 },
+    "partial": { "type": "boolean" },
+    "date": { "type": "string", "format": "date" },
+
+    "engrava_version": { "type": "string", "minLength": 1 },
+    "engrava_dist_hash": { "type": "string", "minLength": 1 },
+    "runner_commit": { "type": "string", "minLength": 1 },
+
+    "system_config": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["adapter", "embedder", "embedder_endpoint", "memory_pipeline_llms", "params"],
+      "properties": {
+        "adapter": { "type": "string", "minLength": 1 },
+        "embedder": { "type": "string", "minLength": 1 },
+        "embedder_endpoint": { "type": "string", "minLength": 1 },
+        "memory_pipeline_llms": {
+          "type": "array",
+          "description": "EVERY generative-LLM use anywhere in the memory pipeline (write-time AND retrieve-time). Empty => Group A.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["role", "model", "snapshot", "endpoint", "prompt_ref", "sampling"],
+            "properties": {
+              "role": { "type": "string", "minLength": 1 },
+              "model": { "type": "string", "minLength": 1 },
+              "snapshot": { "type": "string", "minLength": 1 },
+              "endpoint": { "type": "string", "minLength": 1 },
+              "prompt_ref": { "type": "string" },
+              "sampling": { "type": "object" }
+            }
+          }
+        },
+        "params": { "type": "object" }
+      }
+    },
+    "group": { "type": "string", "enum": ["A", "B"] },
+
+    "reader_model": { "type": "string", "minLength": 1 },
+    "reader_snapshot": { "type": "string", "minLength": 1 },
+    "reader_endpoint": { "type": "string", "minLength": 1 },
+    "reader_sampling": { "type": "object" },
+    "judge_model": { "type": "string", "minLength": 1 },
+    "judge_snapshot": { "type": "string", "minLength": 1 },
+    "judge_endpoint": { "type": ["string", "null"] },
+    "scorer_version": { "type": "string", "minLength": 1 },
+    "reader_version": { "type": "string", "minLength": 1 },
+
+    "retriever": { "type": "string", "minLength": 1 },
+    "granularity": { "type": "string", "minLength": 1 },
+    "top_k": { "type": "integer", "minimum": 1 },
+    "ingestion_regime": { "type": "string", "minLength": 1 },
+
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["overall_micro", "macro", "abstention", "per_category"],
+      "description": "overall_micro = micro over ALL questions (includes abstention items); macro = unweighted mean of the 6 categories; abstention = cross-cutting subset (overlaps categories, NOT a 7th category, NOT additive). per_category keys = exact official question_type strings (hyphenated; 1:1 with print_qa_metrics.py). Each cell is {accuracy, n}.",
+      "properties": {
+        "overall_micro": { "type": "number", "minimum": 0, "maximum": 1 },
+        "macro": { "type": "number", "minimum": 0, "maximum": 1 },
+        "abstention": { "$ref": "#/$defs/metricCell" },
+        "per_category": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "single-session-user",
+            "single-session-assistant",
+            "single-session-preference",
+            "knowledge-update",
+            "temporal-reasoning",
+            "multi-session"
+          ],
+          "properties": {
+            "single-session-user": { "$ref": "#/$defs/metricCell" },
+            "single-session-assistant": { "$ref": "#/$defs/metricCell" },
+            "single-session-preference": { "$ref": "#/$defs/metricCell" },
+            "knowledge-update": { "$ref": "#/$defs/metricCell" },
+            "temporal-reasoning": { "$ref": "#/$defs/metricCell" },
+            "multi-session": { "$ref": "#/$defs/metricCell" }
+          }
+        }
+      }
+    },
+    "n": { "type": "integer", "minimum": 0 },
+    "reproduction_artifact_url": { "type": "string" },
+    "artifact_checksum": { "type": "string" },
+    "artifact_license": { "type": "string", "minLength": 1 },
+
+    "citation": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["source_title", "source_url", "retrieved_date", "as_reported_config"],
+          "properties": {
+            "source_title": { "type": "string", "minLength": 1 },
+            "source_url": { "type": "string", "minLength": 1 },
+            "retrieved_date": { "type": "string", "format": "date" },
+            "as_reported_config": { "type": "string" }
+          }
+        }
+      ]
+    },
+    "notes": { "type": "string" }
+  },
+
+  "$defs": {
+    "metricCell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["accuracy", "n"],
+      "properties": {
+        "accuracy": { "type": "number", "minimum": 0, "maximum": 1 },
+        "n": { "type": "integer", "minimum": 0 }
+      }
+    }
+  },
+
+  "allOf": [
+    {
+      "$comment": "provenance == sovantica-run => citation null, judge fixed to the official gpt-4o family / gpt-4o-2024-08-06 snapshot via api.openai.com.",
+      "if": {
+        "properties": { "provenance": { "const": "sovantica-run" } },
+        "required": ["provenance"]
+      },
+      "then": {
+        "properties": {
+          "citation": { "type": "null" },
+          "judge_model": { "const": "gpt-4o" },
+          "judge_endpoint": { "const": "api.openai.com" },
+          "judge_snapshot": { "const": "gpt-4o-2024-08-06" }
+        }
+      }
+    },
+    {
+      "$comment": "provenance != sovantica-run => citation REQUIRED (non-null object).",
+      "if": {
+        "not": { "properties": { "provenance": { "const": "sovantica-run" } } },
+        "required": ["provenance"]
+      },
+      "then": {
+        "properties": {
+          "citation": {
+            "type": "object",
+            "required": ["source_title", "source_url", "retrieved_date", "as_reported_config"]
+          }
+        }
+      }
+    }
+  ]
+}

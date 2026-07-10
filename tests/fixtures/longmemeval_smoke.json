@@ -1,0 +1,33 @@
+[
+  {
+    "question_id": "smoke_q1",
+    "question_type": "single-session-user",
+    "question": "What pet did the user say they adopted?",
+    "answer": "a beagle",
+    "question_date": "2026-01-10",
+    "haystack_dates": ["2026-01-05"],
+    "haystack_session_ids": ["s1"],
+    "haystack_sessions": [
+      [
+        {"role": "user", "content": "I adopted a beagle last weekend.", "has_answer": true},
+        {"role": "assistant", "content": "Congratulations on the new beagle!"},
+        {"role": "user", "content": "We named him Scout."}
+      ]
+    ]
+  },
+  {
+    "question_id": "smoke_q2_abs",
+    "question_type": "multi-session",
+    "question": "What is the user's bank account number?",
+    "answer": "The user never shared any bank account number.",
+    "question_date": "2026-02-01",
+    "haystack_dates": ["2026-01-20"],
+    "haystack_session_ids": ["s2"],
+    "haystack_sessions": [
+      [
+        {"role": "user", "content": "I went hiking near the lake yesterday.", "has_answer": false},
+        {"role": "assistant", "content": "Sounds like a nice trip!"}
+      ]
+    ]
+  }
+]

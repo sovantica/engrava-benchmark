@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: "pip"
+      - name: Install dependencies
+        run: pip install -e ".[dev,engrava]"
+      - name: Ruff check
+        run: ruff check adapters runners scripts
+      - name: Ruff format check
+        run: ruff format --check adapters runners scripts
+
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: "pip"
+      - name: Install dependencies
+        run: pip install -e ".[dev,engrava]"
+      - name: Mypy
+        run: mypy --strict adapters scripts
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+      - name: Run tests
+        run: pytest -q
+
+  validate-results:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: "pip"
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+      - name: Validate results
+        run: python scripts/validate_results.py
+      - name: Rebuild leaderboard (must be in sync)
+        run: |
+          python scripts/build_leaderboard.py
+          if ! git diff --quiet -- leaderboard.json; then
+            echo "leaderboard.json is out of sync with results/. Run 'make leaderboard' and commit."
+            git --no-pager diff -- leaderboard.json
+            exit 1
+          fi
