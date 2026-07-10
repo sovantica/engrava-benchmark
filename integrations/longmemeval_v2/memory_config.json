@@ -1,0 +1,19 @@
+{
+  "memory_type": "engrava",
+  "memory_params": {
+    "embedding_params": {
+      "backend": "openai-compatible",
+      "model": "Qwen/Qwen3-Embedding-8B",
+      "base_url": "http://localhost:8114/v1",
+      "api_key_env": "OPENAI_API_KEY",
+      "api_key_file": null,
+      "dimension": null,
+      "max_input_tokens": 4096,
+      "batch_size": 32
+    },
+    "retrieval_params": {
+      "top_k": 6,
+      "max_context_chars": 20000
+    }
+  }
+}
