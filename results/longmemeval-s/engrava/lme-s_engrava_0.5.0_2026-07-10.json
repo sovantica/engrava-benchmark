@@ -79,5 +79,5 @@
   "artifact_checksum": "sha256:3d5e53b13da80cdb4c42f60091ff920ba48003aca313e3230d0232f5667460e1",
   "artifact_license": "MIT",
   "citation": null,
-  "notes": ""
+  "notes": "CI path-filter smoke — results-only PR (will be closed unmerged)."
 }
