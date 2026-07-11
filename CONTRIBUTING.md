@@ -39,7 +39,7 @@ read benchmark answers/labels. A counted improvement lives behind `ingest`/`sear
 ## Contributing a result
 
 Create result-row PRs from a `results/<kebab>` branch. Every result row is a
-`results/<benchmark>/<system>/<result_id>.json` file validated against
+`results/<benchmark>/<harness>/<system>/<result_id>.json` file validated against
 [`results/schema/results.schema.json`](results/schema/results.schema.json):
 
 1. Produce the row by running a runner (do not hand-write metrics).
