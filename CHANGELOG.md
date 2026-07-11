@@ -13,6 +13,8 @@ All notable changes to this project are documented here. Format follows
   (in-repo or an external runner's origin), and the exact version the run used —
   so external-runner results are reproducible and auditable.
 - LongMemEval-V2 Engrava adapter.
+- Agent Memory Benchmark (AMB) Engrava provider under `integrations/` for running Engrava
+  inside the AMB harness.
 
 ### Changed
 
