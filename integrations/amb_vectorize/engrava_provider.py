@@ -458,17 +458,28 @@ class EngravaMemoryProvider(MemoryProvider):
         import aiosqlite  # noqa: PLC0415
 
         conn = await aiosqlite.connect(":memory:")
-        conn.row_factory = aiosqlite.Row
-        await conn.execute("PRAGMA journal_mode = WAL")
-        await conn.execute("PRAGMA foreign_keys = ON")
-        await conn.execute("PRAGMA synchronous = NORMAL")
-        store = SqliteEngravaCore(
-            conn,
-            embedding_provider=self._provider,
-            auto_embed=False,
-            journal_enabled=False,
-        )
-        await store.ensure_schema()
+        store: SqliteEngravaCore | None = None
+        try:
+            conn.row_factory = aiosqlite.Row
+            await conn.execute("PRAGMA journal_mode = WAL")
+            await conn.execute("PRAGMA foreign_keys = ON")
+            await conn.execute("PRAGMA synchronous = NORMAL")
+            store = SqliteEngravaCore(
+                conn,
+                embedding_provider=self._provider,
+                auto_embed=False,
+                journal_enabled=False,
+            )
+            await store.ensure_schema()
+        except BaseException:
+            # Any failure before the bank is registered must not leak the freshly
+            # opened store/connection; close what we opened, then re-raise.
+            if store is not None:
+                with contextlib.suppress(Exception):
+                    await store.close()
+            with contextlib.suppress(Exception):
+                await conn.close()
+            raise
         bank = _Bank(conn, store)
         self._banks[bank_key] = bank
         return bank
@@ -643,10 +654,13 @@ class EngravaMemoryProvider(MemoryProvider):
             loop: The loop captured before cleanup (never closed while running).
 
         """
-        if loop is not None and not loop.is_closed() and not loop.is_running():
-            loop.close()
-        self._loop = None
-        self._banks = {}
+        try:
+            if loop is not None and not loop.is_closed() and not loop.is_running():
+                loop.close()
+        finally:
+            # References are dropped even if loop.close() raises.
+            self._loop = None
+            self._banks = {}
 
     def __del__(self) -> None:
         """Best-effort teardown fallback if :meth:`cleanup` was never called.
@@ -655,8 +669,10 @@ class EngravaMemoryProvider(MemoryProvider):
         a garbage-collected provider does not leak sqlite connections. The store
         close and the loop/reference drop are guarded independently, so a failure
         in the former never skips the latter and no exception escapes ``__del__``.
+        ``BaseException`` is suppressed here (finalizer only) so nothing at all can
+        propagate out of garbage collection.
         """
-        with contextlib.suppress(Exception):
+        with contextlib.suppress(BaseException):
             self._close_banks_sync()
-        with contextlib.suppress(Exception):
+        with contextlib.suppress(BaseException):
             self._drop(self._loop)
