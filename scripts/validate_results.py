@@ -21,6 +21,10 @@ Validation has several layers:
      ``benchmark``/``harness.name``/``system``; the filename equals
      ``<result_id>.json``;
    - **global ``result_id`` uniqueness** across the whole ``results/`` tree.
+   - **forbidden-location sweep:** any result-like ``.json`` under ``results/`` that is
+     neither a canonical depth-4 row, a recognized bundle component, nor the schema
+     file (e.g. a stale pre-migration ``<benchmark>/<system>/<id>.json`` at depth 3) is
+     rejected — it can never slip past a default run by being silently skipped.
 
 Usage:
     python scripts/validate_results.py [path ...]
@@ -401,13 +405,82 @@ def _duplicate_id_errors(
     return errors
 
 
+# Bundle components that are ``.json`` (the others are ``.jsonl``). They legitimately
+# live one level below a result row, inside the ``<result_id>/`` artifact directory.
+_BUNDLE_JSON_NAMES: frozenset[str] = frozenset({"config.json", "manifest.json"})
+
+# Path depth (relative to ``results/``) of a canonical result row and of a bundle file.
+_RESULT_ROW_DEPTH = 4  # <benchmark>/<harness>/<system>/<result_id>.json
+_BUNDLE_FILE_DEPTH = 5  # <benchmark>/<harness>/<system>/<result_id>/<component>.json
+
+
+def _is_bundle_json(path: Path) -> bool:
+    """Return ``True`` if ``path`` is a recognized artifact-bundle ``.json`` component.
+
+    A legitimate bundle ``.json`` (``config.json`` / ``manifest.json``) lives inside a
+    ``<result_id>/`` directory that has a sibling ``<result_id>.json`` result row.
+
+    Args:
+        path: A ``.json`` file at bundle depth under ``results/``.
+
+    Returns:
+        ``True`` iff it is a recognized bundle component beside its result row.
+
+    """
+    if path.name not in _BUNDLE_JSON_NAMES:
+        return False
+    # The parent is the ``<result_id>/`` bundle dir; its sibling ``<result_id>.json`` is
+    # the result row this bundle belongs to. Build the sibling name explicitly (NOT via
+    # ``with_suffix``, which would mangle a result_id that contains dots, e.g. ``0.5.0``).
+    bundle_dir = path.parent
+    return (bundle_dir.parent / f"{bundle_dir.name}.json").is_file()
+
+
+def _stray_file_errors(results_dir: Path) -> dict[Path, list[str]]:
+    """Return per-file errors for result-like JSON at a forbidden location.
+
+    ``iter_result_files`` only sees canonical depth-4 rows, so a misplaced ``.json``
+    (e.g. a stale pre-migration ``results/<benchmark>/<system>/<id>.json`` at depth 3)
+    would be silently skipped by the default run. This sweeps the WHOLE tree and flags
+    any ``.json`` that is neither a canonical result row, a recognized bundle component,
+    nor the schema file — so a forbidden-location row fails validation, never passes.
+
+    Args:
+        results_dir: The ``results/`` root.
+
+    Returns:
+        A mapping of file -> error strings for each stray file (empty = none).
+
+    """
+    errors: dict[Path, list[str]] = {}
+    for path in sorted(results_dir.rglob("*.json")):
+        if not path.is_file():
+            continue
+        parts = path.relative_to(results_dir).parts
+        if parts and parts[0] == "schema":
+            continue  # the schema file is never a result row
+        depth = len(parts)
+        if depth == _RESULT_ROW_DEPTH:
+            continue  # a canonical result row (validated on its own)
+        if depth == _BUNDLE_FILE_DEPTH and _is_bundle_json(path):
+            continue  # a legitimate artifact-bundle component
+        errors[path.resolve()] = [
+            f"result-like JSON at a forbidden location "
+            f"{path.relative_to(results_dir).as_posix()!r}: a result row must live at "
+            f"results/<benchmark>/<harness>/<system>/<result_id>.json (depth "
+            f"{_RESULT_ROW_DEPTH})"
+        ]
+    return errors
+
+
 def main(argv: list[str] | None = None) -> int:
     """Validate the partitioned results store (or the given files).
 
     Args:
         argv: Optional list of explicit paths; defaults to every result file under
-            ``results/<benchmark>/<harness>/<system>/``. Global ``result_id`` uniqueness is
-            always checked across the WHOLE tree, regardless of ``argv``.
+            ``results/<benchmark>/<harness>/<system>/``. Global ``result_id`` uniqueness
+            and the forbidden-location (stray-file) sweep are always checked across the
+            WHOLE tree, regardless of ``argv``.
 
     Returns:
         ``0`` if all valid, ``1`` if any file fails.
@@ -418,7 +491,13 @@ def main(argv: list[str] | None = None) -> int:
     # Read the module global at call time so tests can repoint RESULTS_DIR.
     tree = iter_result_files(RESULTS_DIR)
     paths = [Path(a) for a in argv] if argv else tree
-    if not paths:
+
+    # Forbidden-location sweep spans the WHOLE tree so a misplaced/stale row at a
+    # non-canonical depth (which ``iter_result_files`` never returns) cannot slip past
+    # a default run. Reported for any stray not already validated explicitly below.
+    stray_errors = _stray_file_errors(RESULTS_DIR)
+
+    if not paths and not stray_errors:
         print("No result files to validate (the results tree holds no rows yet).")  # noqa: T201
         return 0
 
@@ -426,9 +505,12 @@ def main(argv: list[str] | None = None) -> int:
     dup_errors = _duplicate_id_errors(tree, results_dir=RESULTS_DIR)
 
     failed = 0
+    reviewed: set[Path] = set()
     for path in paths:
         errors = validate_file(path, validator, results_dir=RESULTS_DIR)
         errors.extend(dup_errors.get(path.resolve(), []))
+        errors.extend(stray_errors.get(path.resolve(), []))
+        reviewed.add(path.resolve())
         if errors:
             failed += 1
             print(f"FAIL {path.name}")  # noqa: T201
@@ -436,6 +518,15 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"  - {err}")  # noqa: T201
         else:
             print(f"OK   {path.name}")  # noqa: T201
+
+    # Strays not explicitly passed (the default/CI case) still fail the run.
+    for stray, errs in stray_errors.items():
+        if stray in reviewed:
+            continue
+        failed += 1
+        print(f"FAIL {_rel_to_results(stray, RESULTS_DIR)}")  # noqa: T201
+        for err in errs:
+            print(f"  - {err}")  # noqa: T201
     return 1 if failed else 0
 
 

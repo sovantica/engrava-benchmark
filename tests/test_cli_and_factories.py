@@ -356,6 +356,42 @@ def test_validate_main_on_tree(
     assert vr.main([str(out)]) == 0
 
 
+def test_validate_main_rejects_depth_three_stray(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # A stale/misplaced depth-3 result JSON (the OLD pre-migration location) must be
+    # DETECTED and REJECTED by the default (no-arg) validation run — it must never be
+    # silently skipped just because it sits below the canonical partition depth.
+    stray = tmp_path / "longmemeval-s" / "engrava" / "stale.json"
+    stray.parent.mkdir(parents=True)
+    stray.write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(vr, "RESULTS_DIR", tmp_path)
+    assert vr.main() == 1
+    out = capsys.readouterr().out
+    assert "forbidden location" in out
+
+
+def test_validate_main_allows_bundle_json_at_depth_five(
+    tmp_path: Path,
+    valid_sovantica_row: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+    write_valid_artifact,
+) -> None:
+    # The forbidden-location sweep must NOT false-positive on the schema file or on the
+    # bundle's depth-5 config.json / manifest.json — the default run stays green.
+    write_valid_artifact(tmp_path, valid_sovantica_row)
+    out = emit.result_path(valid_sovantica_row, results_dir=tmp_path)
+    out.write_text(json.dumps(valid_sovantica_row), encoding="utf-8")
+    schema_dir = tmp_path / "schema"
+    schema_dir.mkdir()
+    (schema_dir / "results.schema.json").write_text("{}", encoding="utf-8")
+    bundle_dir = emit.artifact_path(valid_sovantica_row, results_dir=tmp_path)
+    assert (bundle_dir / "config.json").is_file()
+    assert (bundle_dir / "manifest.json").is_file()
+    monkeypatch.setattr(vr, "RESULTS_DIR", tmp_path)
+    assert vr.main() == 0
+
+
 def test_build_leaderboard_main(
     tmp_path: Path,
     valid_sovantica_row: dict[str, Any],
