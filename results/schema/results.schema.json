@@ -200,7 +200,7 @@
 
   "allOf": [
     {
-      "$comment": "provenance == sovantica-run => citation null. The judge pin is keyed on the harness (below), NOT on provenance: an AMB/Gemini run is still a sovantica-run but does not use the longmemeval-official judge.",
+      "$comment": "provenance == sovantica-run => citation null. The judge pin is keyed on the harness (below), NOT on provenance: a run on a different harness with a non-gpt-4o judge (e.g. a Gemini-judged external harness) is still a sovantica-run but does not use the longmemeval-official judge.",
       "if": {
         "properties": { "provenance": { "const": "sovantica-run" } },
         "required": ["provenance"]
@@ -212,7 +212,7 @@
       }
     },
     {
-      "$comment": "harness.name == longmemeval-official => judge fixed to the official gpt-4o family / gpt-4o-2024-08-06 snapshot via api.openai.com. Keyed on the harness because the harness is what fixes the judge, so a different harness (e.g. an AMB/Gemini run) may use a non-gpt-4o judge and still validate.",
+      "$comment": "harness.name == longmemeval-official => judge fixed to the official gpt-4o family / gpt-4o-2024-08-06 snapshot via api.openai.com. Keyed on the harness because the harness is what fixes the judge, so a different harness (e.g. a Gemini-judged external harness) may use a non-gpt-4o judge and still validate.",
       "if": {
         "properties": {
           "harness": {

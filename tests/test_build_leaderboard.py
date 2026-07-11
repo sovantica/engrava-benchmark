@@ -64,14 +64,14 @@ def test_segments_by_harness(valid_sovantica_row: dict[str, Any]) -> None:
     b = copy.deepcopy(valid_sovantica_row)
     b["result_id"] = "b"
     b["harness"] = {
-        "name": "amb-official",
-        "source": "https://example.test/amb",
-        "version": "amb@1.0",
+        "name": "external-harness",
+        "source": "https://example.test/external-harness",
+        "version": "external@1.0",
     }
     board = bl.build_leaderboard([a, b])
     assert len(board["segments"]) == 2
     names = {seg["comparability"]["harness.name"] for seg in board["segments"]}
-    assert names == {"longmemeval-official", "amb-official"}
+    assert names == {"longmemeval-official", "external-harness"}
 
 
 def test_segments_by_harness_version(valid_sovantica_row: dict[str, Any]) -> None:

@@ -68,14 +68,14 @@ def test_non_official_harness_allows_non_gpt4o_judge(valid_sovantica_row: dict[s
     """A different harness (still sovantica-run) may use a non-gpt-4o judge and validate.
 
     The judge pin is keyed on ``harness.name == "longmemeval-official"``, NOT on
-    provenance, so an AMB/Gemini run — provenance sovantica-run, but a different
-    harness — stays schema-valid with a Gemini judge.
+    provenance, so a run on a different (external) harness — provenance sovantica-run,
+    but not the official harness — stays schema-valid with a non-gpt-4o judge.
     """
     row = valid_sovantica_row
     row["harness"] = {
-        "name": "amb-official",
-        "source": "https://example.test/amb",
-        "version": "amb@1.0",
+        "name": "external-harness",
+        "source": "https://example.test/external-harness",
+        "version": "external@1.0",
     }
     row["judge_model"] = "gemini-2.0-flash"
     row["judge_snapshot"] = "gemini-2.0-flash-001"

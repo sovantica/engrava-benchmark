@@ -371,6 +371,24 @@ def test_validate_main_rejects_depth_three_stray(
     assert "forbidden location" in out
 
 
+def test_validate_main_rejects_stray_under_schema_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # The schema exclusion is the EXACT file, not the whole schema/ directory: a stray
+    # result-like JSON dropped under results/schema/ must still be rejected, while the
+    # real schema/results.schema.json does NOT trigger a false positive.
+    schema_dir = tmp_path / "schema"
+    schema_dir.mkdir()
+    (schema_dir / "results.schema.json").write_text("{}", encoding="utf-8")
+    (schema_dir / "stale.json").write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(vr, "RESULTS_DIR", tmp_path)
+    assert vr.main() == 1
+    out = capsys.readouterr().out
+    assert "forbidden location" in out
+    assert "schema/stale.json" in out
+    assert "schema/results.schema.json" not in out
+
+
 def test_validate_main_allows_bundle_json_at_depth_five(
     tmp_path: Path,
     valid_sovantica_row: dict[str, Any],

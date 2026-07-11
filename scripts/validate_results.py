@@ -405,6 +405,11 @@ def _duplicate_id_errors(
     return errors
 
 
+# The ONE non-result ``.json`` allowed under ``results/``: the schema file itself, at
+# ``results/schema/results.schema.json``. Any OTHER ``.json`` under ``results/schema/``
+# is a forbidden-location stray (the exclusion is the exact file, not the whole dir).
+_SCHEMA_REL_PARTS: tuple[str, ...] = SCHEMA_PATH.relative_to(RESULTS_DIR).parts
+
 # Bundle components that are ``.json`` (the others are ``.jsonl``). They legitimately
 # live one level below a result row, inside the ``<result_id>/`` artifact directory.
 _BUNDLE_JSON_NAMES: frozenset[str] = frozenset({"config.json", "manifest.json"})
@@ -457,8 +462,8 @@ def _stray_file_errors(results_dir: Path) -> dict[Path, list[str]]:
         if not path.is_file():
             continue
         parts = path.relative_to(results_dir).parts
-        if parts and parts[0] == "schema":
-            continue  # the schema file is never a result row
+        if parts == _SCHEMA_REL_PARTS:
+            continue  # the schema file itself is never a result row
         depth = len(parts)
         if depth == _RESULT_ROW_DEPTH:
             continue  # a canonical result row (validated on its own)
