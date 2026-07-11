@@ -22,6 +22,7 @@
     "engrava_version",
     "engrava_dist_hash",
     "runner_commit",
+    "harness",
     "system_config",
     "group",
     "reader_model",
@@ -72,6 +73,18 @@
     "engrava_version": { "type": "string", "minLength": 1 },
     "engrava_dist_hash": { "type": "string", "minLength": 1 },
     "runner_commit": { "type": "string", "minLength": 1 },
+
+    "harness": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The runner (harness) that produced the number. A harness fixes the reader, judge, prompt, context format, and scorer, so it is an explicit identity/comparability axis: two numbers are only comparable under the same harness. name = a canonical harness slug (validated against the registry in scripts/canonical_slugs.py). source = origin: 'in-repo' for the native runner, or a URL for an external runner. version = the exact ref the run used (e.g. 'engrava-benchmark@<sha>').",
+      "required": ["name", "source", "version"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "source": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 }
+      }
+    },
 
     "system_config": {
       "type": "object",
@@ -187,14 +200,30 @@
 
   "allOf": [
     {
-      "$comment": "provenance == sovantica-run => citation null, judge fixed to the official gpt-4o family / gpt-4o-2024-08-06 snapshot via api.openai.com.",
+      "$comment": "provenance == sovantica-run => citation null. The judge pin is keyed on the harness (below), NOT on provenance: an AMB/Gemini run is still a sovantica-run but does not use the longmemeval-official judge.",
       "if": {
         "properties": { "provenance": { "const": "sovantica-run" } },
         "required": ["provenance"]
       },
       "then": {
         "properties": {
-          "citation": { "type": "null" },
+          "citation": { "type": "null" }
+        }
+      }
+    },
+    {
+      "$comment": "harness.name == longmemeval-official => judge fixed to the official gpt-4o family / gpt-4o-2024-08-06 snapshot via api.openai.com. Keyed on the harness because the harness is what fixes the judge, so a different harness (e.g. an AMB/Gemini run) may use a non-gpt-4o judge and still validate.",
+      "if": {
+        "properties": {
+          "harness": {
+            "properties": { "name": { "const": "longmemeval-official" } },
+            "required": ["name"]
+          }
+        },
+        "required": ["harness"]
+      },
+      "then": {
+        "properties": {
           "judge_model": { "const": "gpt-4o" },
           "judge_endpoint": { "const": "api.openai.com" },
           "judge_snapshot": { "const": "gpt-4o-2024-08-06" }
