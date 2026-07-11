@@ -378,7 +378,14 @@ class EngravaMemoryProvider(MemoryProvider):
         """Release every bank's store/connection and the persistent event loop.
 
         Idempotent: safe to call more than once and when the loop was never created.
-        References are always dropped, even if the awaited cleanup raises.
+        When the loop is idle (the normal case) every bank store and connection is
+        closed on it *before* references and the loop are dropped, so nothing is
+        leaked. References and the loop are then ALWAYS dropped, even if a close
+        raises. The provider's own loop only runs during a synchronous
+        ingest/retrieve call, so under the single-threaded contract it is idle here;
+        if ``cleanup`` is somehow reached while that loop is still running, an async
+        close cannot be driven synchronously and the caller must close the provider
+        from outside that loop instead.
         """
         loop = self._loop
         try:
@@ -645,8 +652,11 @@ class EngravaMemoryProvider(MemoryProvider):
         """Best-effort teardown fallback if :meth:`cleanup` was never called.
 
         Closes any still-open bank stores/connections before dropping the loop, so
-        a garbage-collected provider does not leak sqlite connections.
+        a garbage-collected provider does not leak sqlite connections. The store
+        close and the loop/reference drop are guarded independently, so a failure
+        in the former never skips the latter and no exception escapes ``__del__``.
         """
         with contextlib.suppress(Exception):
             self._close_banks_sync()
+        with contextlib.suppress(Exception):
             self._drop(self._loop)
