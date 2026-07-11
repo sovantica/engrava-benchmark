@@ -50,12 +50,12 @@ from engrava import (
 
 # Upstream AMB package — present when this file is dropped into an AMB checkout.
 from memory_bench.memory.base import MemoryProvider
-from memory_bench.models import Document
 
 if TYPE_CHECKING:
     from collections.abc import Coroutine
 
     import aiosqlite
+    from memory_bench.models import Document
 
 _ESSENCE_LIMIT = 180
 _EMBED_BATCH_SIZE = 32
@@ -66,12 +66,12 @@ _DETERMINISTIC_DIM = 16
 _DEFAULT_LOCAL_MODEL = "all-MiniLM-L12-v2"
 _DEFAULT_OPENAI_MODEL = "text-embedding-3-small"
 
-# Sentinel key for the shared bank used when a dataset declares no isolation unit
-# (``user_id is None``). A single leading-underscore key can never collide with a
-# real user id (those are dataset-provided plain strings).
-_SHARED_BANK = "_shared"
-
 _T = TypeVar("_T")
+
+# A bank is keyed by ``(user_id is None, user_id)``. The leading boolean tags the
+# no-isolation-unit case, so a real ``user_id`` value (including the literal
+# ``"_shared"``) can never collide with the shared/no-unit bank.
+BankKey = tuple[bool, str | None]
 
 
 class ProviderError(RuntimeError):
@@ -196,19 +196,26 @@ def _truncate_embed_input(text: str) -> str:
     return enc.decode(tokens[:_MAX_EMBED_TOKENS])
 
 
-def _thought_id(bank_key: str, doc_id: str, ordinal: int) -> str:
-    """Derive a deterministic thought id from bank, document id, and ordinal.
+def _thought_id(bank_key: BankKey, doc_id: str, ordinal: int, content: str) -> str:
+    """Derive a deterministic, stable-unique thought id for one insertion.
+
+    The ``ordinal`` is a per-bank monotonic counter that advances across every
+    :meth:`EngravaMemoryProvider.ingest` call, so re-ingesting the same
+    bank/document never regenerates a prior id. A content hash is folded in so
+    distinct payloads never share an id even if a counter were ever reused.
 
     Args:
         bank_key: The per-user bank key.
         doc_id: The source document id.
-        ordinal: The ingest ordinal (disambiguates repeated document ids).
+        ordinal: The bank's monotonic insertion counter (unique within the bank).
+        content: The document content (folded in as a stability hash).
 
     Returns:
-        The full hex digest of ``sha256(f"{bank_key}:{doc_id}:{ordinal}")``.
+        The full hex digest of ``sha256`` over the composed key.
 
     """
-    raw = f"{bank_key}:{doc_id}:{ordinal}"
+    content_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
+    raw = f"{bank_key[0]}:{bank_key[1]}:{doc_id}:{ordinal}:{content_hash}"
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
@@ -263,7 +270,7 @@ def _create_embedding_provider() -> _EmbeddingProvider:
 class _Bank:
     """A per-user Engrava store plus the id map back to the source documents."""
 
-    __slots__ = ("conn", "id_to_doc", "store")
+    __slots__ = ("conn", "id_to_doc", "next_ordinal", "store")
 
     def __init__(self, conn: aiosqlite.Connection, store: SqliteEngravaCore) -> None:
         """Initialize the bank.
@@ -276,6 +283,9 @@ class _Bank:
         self.conn = conn
         self.store = store
         self.id_to_doc: dict[str, Document] = {}
+        # Monotonic insertion counter, advanced across every ingest() call so a
+        # re-ingested document never regenerates a previously used thought id.
+        self.next_ordinal = 0
 
 
 class EngravaMemoryProvider(MemoryProvider):
@@ -313,7 +323,7 @@ class EngravaMemoryProvider(MemoryProvider):
         """
         self._k = k
         self._provider = _create_embedding_provider()
-        self._banks: dict[str, _Bank] = {}
+        self._banks: dict[BankKey, _Bank] = {}
         # One persistent event loop for this provider's whole lifetime, created
         # lazily on the first sync call so ingest, retrieve, and cleanup all run on
         # the same loop. Async engrava providers cache a loop-bound client; reusing
@@ -409,11 +419,22 @@ class EngravaMemoryProvider(MemoryProvider):
         return self._loop.run_until_complete(coro)
 
     @staticmethod
-    def _bank_key(user_id: str | None) -> str:
-        """Return the bank key for a ``user_id`` (the shared key when None)."""
-        return user_id if user_id is not None else _SHARED_BANK
+    def _bank_key(user_id: str | None) -> BankKey:
+        """Return the collision-proof bank key for a ``user_id``.
 
-    async def _ensure_bank(self, bank_key: str) -> _Bank:
+        The leading boolean tags the no-isolation-unit case (``user_id is None``),
+        so ``user_id="_shared"`` and ``user_id=None`` map to different banks.
+
+        Args:
+            user_id: The isolation unit, or None when the dataset declares none.
+
+        Returns:
+            The tagged bank key.
+
+        """
+        return (user_id is None, user_id)
+
+    async def _ensure_bank(self, bank_key: BankKey) -> _Bank:
         """Return the bank for ``bank_key``, creating a fresh in-memory store if new.
 
         Args:
@@ -446,14 +467,14 @@ class EngravaMemoryProvider(MemoryProvider):
         return bank
 
     def _plan_thought(
-        self, bank_key: str, doc: Document, ordinal: int
+        self, bank_key: BankKey, doc: Document, ordinal: int
     ) -> tuple[ThoughtRecord, str]:
         """Build the thought record + embed payload for one document.
 
         Args:
             bank_key: The bank key the document belongs to.
             doc: The source document.
-            ordinal: The ingest ordinal within this call.
+            ordinal: The bank's monotonic insertion counter for this document.
 
         Returns:
             A ``(thought, embed_payload)`` pair.
@@ -462,7 +483,7 @@ class EngravaMemoryProvider(MemoryProvider):
         content = doc.content
         essence = _essence(content)
         thought = ThoughtRecord(
-            thought_id=_thought_id(bank_key, doc.id, ordinal),
+            thought_id=_thought_id(bank_key, doc.id, ordinal, content),
             thought_type=ThoughtType.OBSERVATION,
             essence=essence,
             content=content,
@@ -496,17 +517,20 @@ class EngravaMemoryProvider(MemoryProvider):
             documents: The documents to ingest.
 
         """
-        plans: list[tuple[str, ThoughtRecord, Document, str]] = []
-        for ordinal, doc in enumerate(documents):
+        plans: list[tuple[_Bank, ThoughtRecord, Document, str]] = []
+        for doc in documents:
             if not doc.content.strip():
                 continue
             bank_key = self._bank_key(doc.user_id)
+            bank = await self._ensure_bank(bank_key)
+            ordinal = bank.next_ordinal
+            bank.next_ordinal += 1
             thought, payload = self._plan_thought(bank_key, doc, ordinal)
-            plans.append((bank_key, thought, doc, payload))
+            plans.append((bank, thought, doc, payload))
 
         distinct: list[str] = []
         seen: set[str] = set()
-        for _bank_key, _thought, _doc, payload in plans:
+        for _bank, _thought, _doc, payload in plans:
             if payload not in seen:
                 seen.add(payload)
                 distinct.append(payload)
@@ -518,8 +542,7 @@ class EngravaMemoryProvider(MemoryProvider):
             vectors.update(zip(batch, embedded, strict=True))
 
         model_name = self._provider.model_name
-        for bank_key, thought, doc, payload in plans:
-            bank = await self._ensure_bank(bank_key)
+        for bank, thought, doc, payload in plans:
             stored = await bank.store.create_thought(thought, deduplicate=False)
             await bank.store.store_embedding(
                 stored.thought_id,
@@ -563,17 +586,48 @@ class EngravaMemoryProvider(MemoryProvider):
             doc = bank.id_to_doc.get(thought_id)
             if doc is None or doc.id in placed:
                 continue
-            docs.append(Document(id=doc.id, content=doc.content, user_id=doc.user_id))
+            # Return the ORIGINAL document (in score order) so the reader keeps
+            # every field (messages/timestamp/context), not a partial rebuild.
+            docs.append(doc)
             raw.append({"id": doc.id, "score": float(score)})
             placed.add(doc.id)
         return docs, {"results": raw}
 
     async def _cleanup_async(self) -> None:
-        """Close every bank's store and connection."""
-        for bank in self._banks.values():
-            await bank.store.close()
-            await bank.conn.close()
-        self._banks.clear()
+        """Close every bank's store and connection, robust to a partial failure.
+
+        Every store and connection gets a close attempt even if an earlier one
+        raises; the first error (if any) is re-raised after all are attempted, so
+        no connection is leaked by an early exit.
+
+        Raises:
+            BaseException: The first error raised while closing a store/connection,
+                re-raised only after every bank has been closed.
+
+        """
+        banks = list(self._banks.values())
+        self._banks = {}
+        first_error: BaseException | None = None
+        for bank in banks:
+            for closer in (bank.store.close, bank.conn.close):
+                try:
+                    await closer()
+                except Exception as exc:  # noqa: BLE001 - close every bank; surface first
+                    first_error = first_error or exc
+        if first_error is not None:
+            raise first_error
+
+    def _close_banks_sync(self) -> None:
+        """Best-effort synchronous close of every bank store/connection on the loop.
+
+        Used by :meth:`__del__` so a dropped provider does not leak connections.
+        Runs the async cleanup on the persistent loop when it is safe to do so.
+        """
+        loop = self._loop
+        if loop is None or loop.is_closed() or loop.is_running() or not self._banks:
+            return
+        with contextlib.suppress(Exception):
+            loop.run_until_complete(self._cleanup_async())
 
     def _drop(self, loop: asyncio.AbstractEventLoop | None) -> None:
         """Close the loop if safe and drop all held references (idempotent).
@@ -588,6 +642,11 @@ class EngravaMemoryProvider(MemoryProvider):
         self._banks = {}
 
     def __del__(self) -> None:
-        """Best-effort teardown fallback if :meth:`cleanup` was never called."""
+        """Best-effort teardown fallback if :meth:`cleanup` was never called.
+
+        Closes any still-open bank stores/connections before dropping the loop, so
+        a garbage-collected provider does not leak sqlite connections.
+        """
         with contextlib.suppress(Exception):
+            self._close_banks_sync()
             self._drop(self._loop)
