@@ -40,6 +40,8 @@ _BENCHMARK_SLUGS: dict[tuple[str, str], str] = {
 #   harness_name -> slug
 _HARNESS_SLUGS: dict[str, str] = {
     "longmemeval-official": "longmemeval-official",
+    "amb-vectorize": "amb-vectorize",
+    "lme-v2-official": "lme-v2-official",
 }
 
 # Registered canonical system slugs. Keyed by the in-file ``system`` value.

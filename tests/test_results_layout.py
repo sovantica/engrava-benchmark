@@ -47,6 +47,12 @@ def test_unregistered_benchmark_raises() -> None:
         cs.benchmark_slug({"benchmark": "nope", "split": "s_full_500"})
 
 
+def test_registered_harness_slugs_resolve() -> None:
+    # The two integration harnesses are registered alongside the official runner.
+    assert cs.harness_slug({"harness": {"name": "amb-vectorize"}}) == "amb-vectorize"
+    assert cs.harness_slug({"harness": {"name": "lme-v2-official"}}) == "lme-v2-official"
+
+
 def test_unregistered_harness_raises() -> None:
     import pytest  # noqa: PLC0415
 
