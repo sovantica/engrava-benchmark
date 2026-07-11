@@ -21,7 +21,13 @@ VALIDATOR = Draft202012Validator(SCHEMA)
 
 def _canonical_path(results_dir: Path, row: dict[str, Any]) -> Path:
     """Write a row at its canonical partitioned path and return the file path."""
-    out = results_dir / cs.benchmark_slug(row) / cs.system_slug(row) / f"{row['result_id']}.json"
+    out = (
+        results_dir
+        / cs.benchmark_slug(row)
+        / cs.harness_slug(row)
+        / cs.system_slug(row)
+        / f"{row['result_id']}.json"
+    )
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(row), encoding="utf-8")
     return out
@@ -30,6 +36,7 @@ def _canonical_path(results_dir: Path, row: dict[str, Any]) -> Path:
 # --- canonical slugs --------------------------------------------------------- #
 def test_canonical_slugs(valid_sovantica_row: dict[str, Any]) -> None:
     assert cs.benchmark_slug(valid_sovantica_row) == "longmemeval-s"
+    assert cs.harness_slug(valid_sovantica_row) == "longmemeval-official"
     assert cs.system_slug(valid_sovantica_row) == "engrava"
 
 
@@ -38,6 +45,13 @@ def test_unregistered_benchmark_raises() -> None:
 
     with pytest.raises(KeyError, match="unregistered benchmark"):
         cs.benchmark_slug({"benchmark": "nope", "split": "s_full_500"})
+
+
+def test_unregistered_harness_raises() -> None:
+    import pytest  # noqa: PLC0415
+
+    with pytest.raises(KeyError, match="unregistered harness"):
+        cs.harness_slug({"harness": {"name": "not-a-registered-harness"}})
 
 
 def test_unregistered_system_raises() -> None:
@@ -54,7 +68,9 @@ def test_layout_errors_on_unregistered_content(
     # canonical slug, so validation reports the unregistered benchmark/system.
     row = copy.deepcopy(valid_sovantica_row)
     row["benchmark"] = "nope"
-    bad = tmp_path / "longmemeval-s" / "engrava" / f"{row['result_id']}.json"
+    bad = (
+        tmp_path / "longmemeval-s" / "longmemeval-official" / "engrava" / f"{row['result_id']}.json"
+    )
     bad.parent.mkdir(parents=True)
     bad.write_text(json.dumps(row))
     errors = vr.validate_file(bad, VALIDATOR, results_dir=tmp_path)
@@ -65,7 +81,7 @@ def test_emit_result_path_is_partitioned(
     tmp_path: Path, valid_sovantica_row: dict[str, Any]
 ) -> None:
     path = emit.result_path(valid_sovantica_row, results_dir=tmp_path)
-    assert path == tmp_path / "longmemeval-s" / "engrava" / (
+    assert path == tmp_path / "longmemeval-s" / "longmemeval-official" / "engrava" / (
         f"{valid_sovantica_row['result_id']}.json"
     )
 
@@ -83,18 +99,31 @@ def test_benchmark_path_must_match_content(
     tmp_path: Path, valid_sovantica_row: dict[str, Any]
 ) -> None:
     rid = valid_sovantica_row["result_id"]
-    wrong = tmp_path / "wrong-benchmark" / "engrava" / f"{rid}.json"
+    wrong = tmp_path / "wrong-benchmark" / "longmemeval-official" / "engrava" / f"{rid}.json"
     wrong.parent.mkdir(parents=True)
     wrong.write_text(json.dumps(valid_sovantica_row))
     errors = vr.validate_file(wrong, VALIDATOR, results_dir=tmp_path)
     assert any("benchmark segment" in e or "benchmark path segment" in e for e in errors)
 
 
+def test_harness_path_must_match_content(
+    tmp_path: Path, valid_sovantica_row: dict[str, Any]
+) -> None:
+    rid = valid_sovantica_row["result_id"]
+    wrong = tmp_path / "longmemeval-s" / "wrong-harness" / "engrava" / f"{rid}.json"
+    wrong.parent.mkdir(parents=True)
+    wrong.write_text(json.dumps(valid_sovantica_row))
+    errors = vr.validate_file(wrong, VALIDATOR, results_dir=tmp_path)
+    assert any("harness segment" in e or "harness path segment" in e for e in errors)
+
+
 def test_system_path_must_match_content(
     tmp_path: Path, valid_sovantica_row: dict[str, Any]
 ) -> None:
     rid = valid_sovantica_row["result_id"]
-    wrong = tmp_path / "longmemeval-s" / "some-other-system" / f"{rid}.json"
+    wrong = (
+        tmp_path / "longmemeval-s" / "longmemeval-official" / "some-other-system" / f"{rid}.json"
+    )
     wrong.parent.mkdir(parents=True)
     wrong.write_text(json.dumps(valid_sovantica_row))
     errors = vr.validate_file(wrong, VALIDATOR, results_dir=tmp_path)
@@ -102,11 +131,21 @@ def test_system_path_must_match_content(
 
 
 def test_filename_must_be_result_id(tmp_path: Path, valid_sovantica_row: dict[str, Any]) -> None:
-    wrong = tmp_path / "longmemeval-s" / "engrava" / "not-the-id.json"
+    wrong = tmp_path / "longmemeval-s" / "longmemeval-official" / "engrava" / "not-the-id.json"
     wrong.parent.mkdir(parents=True)
     wrong.write_text(json.dumps(valid_sovantica_row))
     errors = vr.validate_file(wrong, VALIDATOR, results_dir=tmp_path)
     assert any("filename" in e for e in errors)
+
+
+def test_depth_three_path_rejected(tmp_path: Path, valid_sovantica_row: dict[str, Any]) -> None:
+    """A pre-harness depth-3 path (no harness segment) is now rejected."""
+    rid = valid_sovantica_row["result_id"]
+    old = tmp_path / "longmemeval-s" / "engrava" / f"{rid}.json"
+    old.parent.mkdir(parents=True)
+    old.write_text(json.dumps(valid_sovantica_row))
+    errors = vr.validate_file(old, VALIDATOR, results_dir=tmp_path)
+    assert any("depth 3" in e or "<benchmark>/<harness>/<system>" in e for e in errors)
 
 
 # --- slug rule --------------------------------------------------------------- #
@@ -115,12 +154,12 @@ def test_no_flat_dump_rejected(tmp_path: Path, valid_sovantica_row: dict[str, An
     flat = tmp_path / f"{rid}.json"
     flat.write_text(json.dumps(valid_sovantica_row))
     errors = vr.validate_file(flat, VALIDATOR, results_dir=tmp_path)
-    assert any("results/<benchmark>/<system>" in e for e in errors)
+    assert any("results/<benchmark>/<harness>/<system>" in e for e in errors)
 
 
 def test_uppercase_segment_rejected(tmp_path: Path, valid_sovantica_row: dict[str, Any]) -> None:
     rid = valid_sovantica_row["result_id"]
-    bad = tmp_path / "LongMemEval-S" / "engrava" / f"{rid}.json"
+    bad = tmp_path / "LongMemEval-S" / "longmemeval-official" / "engrava" / f"{rid}.json"
     bad.parent.mkdir(parents=True)
     bad.write_text(json.dumps(valid_sovantica_row))
     errors = vr.validate_file(bad, VALIDATOR, results_dir=tmp_path)
@@ -130,7 +169,13 @@ def test_uppercase_segment_rejected(tmp_path: Path, valid_sovantica_row: dict[st
 def test_unregistered_system_alias_rejected(
     tmp_path: Path, valid_sovantica_row: dict[str, Any]
 ) -> None:
-    bad = tmp_path / "longmemeval-s" / "engrava-oss" / (f"{valid_sovantica_row['result_id']}.json")
+    bad = (
+        tmp_path
+        / "longmemeval-s"
+        / "longmemeval-official"
+        / "engrava-oss"
+        / f"{valid_sovantica_row['result_id']}.json"
+    )
     bad.parent.mkdir(parents=True)
     bad.write_text(json.dumps(valid_sovantica_row))
     errors = vr.validate_file(bad, VALIDATOR, results_dir=tmp_path)
@@ -157,7 +202,13 @@ def test_iter_result_files_skips_schema(
     tmp_path: Path, valid_sovantica_row: dict[str, Any]
 ) -> None:
     _canonical_path(tmp_path, valid_sovantica_row)
-    artifact_dir = tmp_path / "longmemeval-s" / "engrava" / valid_sovantica_row["result_id"]
+    artifact_dir = (
+        tmp_path
+        / "longmemeval-s"
+        / "longmemeval-official"
+        / "engrava"
+        / valid_sovantica_row["result_id"]
+    )
     artifact_dir.mkdir()
     (artifact_dir / "manifest.json").write_text("{}")
     schema_dir = tmp_path / "schema"
@@ -177,7 +228,7 @@ def test_duplicate_error_reports_relative_path(
     dup = vr._duplicate_id_errors(vr.iter_result_files(tmp_path), results_dir=tmp_path)
     # Reported by path-under-results (posix, with the benchmark/system prefix), not
     # the ambiguous bare filename.
-    assert any("longmemeval-s/engrava/" in e for e in dup[a.resolve()])
+    assert any("longmemeval-s/longmemeval-official/engrava/" in e for e in dup[a.resolve()])
 
 
 # --- emit enforces global uniqueness BEFORE writing ------------------------- #

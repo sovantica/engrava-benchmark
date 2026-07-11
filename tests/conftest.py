@@ -31,6 +31,11 @@ def valid_sovantica_row() -> dict[str, Any]:
             "engrava_version": "0.4.0",
             "engrava_dist_hash": "sha256:deadbeef",
             "runner_commit": "engrava-benchmark@abc1234",
+            "harness": {
+                "name": "longmemeval-official",
+                "source": "in-repo",
+                "version": "engrava-benchmark@abc1234",
+            },
             "system_config": {
                 "adapter": "engrava_adapter",
                 "embedder": "text-embedding-3-small",
@@ -66,7 +71,8 @@ def valid_sovantica_row() -> dict[str, Any]:
             },
             "n": 500,
             "reproduction_artifact_url": (
-                "results/longmemeval-s/engrava/lme-s_engrava_0.4.0_2026-06-20_a1b2c3/"
+                "results/longmemeval-s/longmemeval-official/engrava/"
+                "lme-s_engrava_0.4.0_2026-06-20_a1b2c3/"
             ),
             "artifact_checksum": "sha256:" + "c" * 64,
             "artifact_license": "MIT",

@@ -141,12 +141,15 @@ def test_main_default_uses_env_dataset_and_emits_in_repo_artifact(
 
     rc = runner.main([])
     assert rc == 0
-    rows = list((results_dir / "longmemeval-s" / "engrava").glob("*.json"))
+    rows = list((results_dir / "longmemeval-s" / "longmemeval-official" / "engrava").glob("*.json"))
     assert len(rows) == 1
     row = json.loads(rows[0].read_text())
     artifact_dir = rows[0].with_suffix("")
     assert artifact_dir.is_dir()
-    assert row["reproduction_artifact_url"] == f"results/longmemeval-s/engrava/{row['result_id']}/"
+    assert (
+        row["reproduction_artifact_url"]
+        == f"results/longmemeval-s/longmemeval-official/engrava/{row['result_id']}/"
+    )
 
 
 def test_main_mock_run_emits(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -173,8 +176,9 @@ def test_main_mock_run_emits(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
         ]
     )
     assert rc == 0
-    assert (results_dir / "longmemeval-s" / "engrava" / "cli_cov_row.json").exists()
-    assert (results_dir / "longmemeval-s" / "engrava" / "cli_cov_row").is_dir()
+    part = results_dir / "longmemeval-s" / "longmemeval-official" / "engrava"
+    assert (part / "cli_cov_row.json").exists()
+    assert (part / "cli_cov_row").is_dir()
 
 
 def test_main_smoke_forces_free_no_emit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -226,7 +230,13 @@ def test_main_byo_reader_override_recorded_in_row(
     )
     assert rc == 0
     row = json.loads(
-        (results_dir / "longmemeval-s" / "engrava" / "byo_reader_row.json").read_text()
+        (
+            results_dir
+            / "longmemeval-s"
+            / "longmemeval-official"
+            / "engrava"
+            / "byo_reader_row.json"
+        ).read_text()
     )
     assert row["reader_endpoint"] == "https://openrouter.ai/api/v1"
     assert row["reader_model"] == "openai/gpt-oss-120b"
@@ -279,7 +289,13 @@ def test_main_byo_reader_with_key_env_stays_unverified(
     )
     assert rc == 0
     row = json.loads(
-        (results_dir / "longmemeval-s" / "engrava" / "byo_reader_keyenv_row.json").read_text()
+        (
+            results_dir
+            / "longmemeval-s"
+            / "longmemeval-official"
+            / "engrava"
+            / "byo_reader_keyenv_row.json"
+        ).read_text()
     )
     # The overridden reader is recorded; the row can never be a verified headline.
     assert row["reader_model"] == "openai/gpt-oss-120b"
@@ -327,7 +343,13 @@ def test_validate_main_on_tree(
     write_valid_artifact,
 ) -> None:
     write_valid_artifact(tmp_path, valid_sovantica_row)
-    out = tmp_path / "longmemeval-s" / "engrava" / f"{valid_sovantica_row['result_id']}.json"
+    out = (
+        tmp_path
+        / "longmemeval-s"
+        / "longmemeval-official"
+        / "engrava"
+        / f"{valid_sovantica_row['result_id']}.json"
+    )
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(valid_sovantica_row))
     monkeypatch.setattr(vr, "RESULTS_DIR", tmp_path)
@@ -341,7 +363,13 @@ def test_build_leaderboard_main(
     write_valid_artifact,
 ) -> None:
     write_valid_artifact(tmp_path, valid_sovantica_row)
-    out = tmp_path / "longmemeval-s" / "engrava" / f"{valid_sovantica_row['result_id']}.json"
+    out = (
+        tmp_path
+        / "longmemeval-s"
+        / "longmemeval-official"
+        / "engrava"
+        / f"{valid_sovantica_row['result_id']}.json"
+    )
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(valid_sovantica_row))
     monkeypatch.setattr(bl, "RESULTS_DIR", tmp_path)
