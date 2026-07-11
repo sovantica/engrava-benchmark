@@ -1,10 +1,10 @@
 """Validate the partitioned results store against the schema + the rules.
 
-Results live as ``results/<benchmark>/<system>/<result_id>.json``. Validation has
-several layers:
+Results live as ``results/<benchmark>/<harness>/<system>/<result_id>.json``.
+Validation has several layers:
 
 1. JSON Schema (``results/schema/results.schema.json``) — structure, enums,
-   required fields, the provenance/judge/citation conditionals.
+   required fields, the provenance/harness/judge/citation conditionals.
 2. Cross-field rules the schema cannot express ergonomically:
    - ``group`` is **recomputed**, never trusted: ``A`` iff
      ``system_config.memory_pipeline_llms`` is empty, else ``B``; a mismatch
@@ -16,14 +16,15 @@ several layers:
    - **slug rule:** each path segment matches ``^[a-z0-9][a-z0-9-]*$`` and is a
      registered canonical slug (``scripts/canonical_slugs.py``) — aliases and
      case-drift are rejected;
-   - **path/content agreement:** the ``<benchmark>``/``<system>`` directory
-     segments equal the canonical slug of the in-file ``benchmark``/``system``;
-     the filename equals ``<result_id>.json``;
+   - **path/content agreement:** the ``<benchmark>``/``<harness>``/``<system>``
+     directory segments equal the canonical slug of the in-file
+     ``benchmark``/``harness.name``/``system``; the filename equals
+     ``<result_id>.json``;
    - **global ``result_id`` uniqueness** across the whole ``results/`` tree.
 
 Usage:
     python scripts/validate_results.py [path ...]
-    # default: validate every results/<benchmark>/<system>/*.json
+    # default: validate every results/<benchmark>/<harness>/<system>/*.json
 """
 
 from __future__ import annotations
@@ -33,7 +34,10 @@ import json
 import re
 import sys
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 try:
     from jsonschema import Draft202012Validator
@@ -77,12 +81,21 @@ def build_validator() -> Draft202012Validator:
 
 def _artifact_reference(row: dict[str, Any]) -> str:
     """Return the expected repo-relative artifact directory for ``row``."""
-    return f"results/{cs.benchmark_slug(row)}/{cs.system_slug(row)}/{row.get('result_id')}/"
+    return (
+        f"results/{cs.benchmark_slug(row)}/{cs.harness_slug(row)}/"
+        f"{cs.system_slug(row)}/{row.get('result_id')}/"
+    )
 
 
 def _artifact_dir(row: dict[str, Any], results_dir: Path) -> Path:
     """Return the expected in-repo artifact directory for ``row``."""
-    return results_dir / cs.benchmark_slug(row) / cs.system_slug(row) / str(row.get("result_id"))
+    return (
+        results_dir
+        / cs.benchmark_slug(row)
+        / cs.harness_slug(row)
+        / cs.system_slug(row)
+        / str(row.get("result_id"))
+    )
 
 
 def _artifact_path_errors(row: dict[str, Any]) -> list[str]:
@@ -185,13 +198,59 @@ def _cross_field_errors(row: dict[str, Any]) -> list[str]:
 
 
 def _segment_errors(segments: tuple[str, ...]) -> list[str]:
-    """Return slug-shape violations for the two path segments."""
+    """Return slug-shape violations for the path segments."""
     return [
         f"path segment {seg!r} is not a valid slug "
         "(^[a-z0-9][a-z0-9-]*$ — lowercase, leading alphanumeric, hyphenated)"
         for seg in segments
         if not cs.SLUG_RE.match(seg)
     ]
+
+
+# The three partition axes, in path order: (label, registered-slug set, slug fn). The
+# harness sits between benchmark and system: results/<benchmark>/<harness>/<system>/.
+_PARTITION_AXES: tuple[tuple[str, frozenset[str], Callable[[dict[str, Any]], str]], ...] = (
+    ("benchmark", cs.REGISTERED_BENCHMARK_SLUGS, cs.benchmark_slug),
+    ("harness", cs.REGISTERED_HARNESS_SLUGS, cs.harness_slug),
+    ("system", cs.REGISTERED_SYSTEM_SLUGS, cs.system_slug),
+)
+
+
+def _axis_errors(
+    label: str,
+    seg: str,
+    registered: frozenset[str],
+    slug_fn: Callable[[dict[str, Any]], str],
+    row: dict[str, Any],
+) -> list[str]:
+    """Return registration + path/content-agreement errors for one partition axis.
+
+    Args:
+        label: The axis name (``benchmark`` / ``harness`` / ``system``).
+        seg: The path segment for this axis.
+        registered: The registered canonical slugs for this axis.
+        slug_fn: The row -> canonical slug function for this axis.
+        row: The parsed result row.
+
+    Returns:
+        A list of error strings for this axis (empty = OK).
+
+    """
+    errors: list[str] = []
+    if seg not in registered:
+        errors.append(
+            f"{label} segment {seg!r} is not a registered canonical slug {sorted(registered)}"
+        )
+    try:
+        canonical = slug_fn(row)
+    except KeyError as exc:
+        errors.append(str(exc.args[0]) if exc.args else f"unregistered {label}")
+        return errors
+    if seg != canonical:
+        errors.append(
+            f"{label} path segment {seg!r} != canonical slug of in-file {label} ({canonical!r})"
+        )
+    return errors
 
 
 def _layout_errors(path: Path, row: dict[str, Any], results_dir: Path) -> list[str]:
@@ -206,52 +265,24 @@ def _layout_errors(path: Path, row: dict[str, Any], results_dir: Path) -> list[s
         A list of layout error strings (empty = OK).
 
     """
-    errors: list[str] = []
     try:
         rel = path.resolve().relative_to(results_dir.resolve())
     except ValueError:
         # A path outside results_dir (e.g. an explicit ad-hoc file) skips layout checks.
-        return errors
+        return []
 
     parts = rel.parts
-    expected_depth = 3  # <benchmark>/<system>/<file>.json
+    expected_depth = 4  # <benchmark>/<harness>/<system>/<file>.json
     if len(parts) != expected_depth:
         return [
-            f"result must live at results/<benchmark>/<system>/<result_id>.json; "
+            f"result must live at results/<benchmark>/<harness>/<system>/<result_id>.json; "
             f"found depth {len(parts)} at {rel.as_posix()!r}"
         ]
 
-    benchmark_seg, system_seg, filename = parts
-    errors.extend(_segment_errors((benchmark_seg, system_seg)))
-
-    if benchmark_seg not in cs.REGISTERED_BENCHMARK_SLUGS:
-        errors.append(
-            f"benchmark segment {benchmark_seg!r} is not a registered canonical slug "
-            f"{sorted(cs.REGISTERED_BENCHMARK_SLUGS)}"
-        )
-    if system_seg not in cs.REGISTERED_SYSTEM_SLUGS:
-        errors.append(
-            f"system segment {system_seg!r} is not a registered canonical slug "
-            f"{sorted(cs.REGISTERED_SYSTEM_SLUGS)}"
-        )
-
-    # path <-> content agreement: segments must equal the row's own canonical slugs.
-    try:
-        if benchmark_seg != cs.benchmark_slug(row):
-            errors.append(
-                f"benchmark path segment {benchmark_seg!r} != canonical slug of "
-                f"in-file benchmark/split ({cs.benchmark_slug(row)!r})"
-            )
-    except KeyError as exc:
-        errors.append(str(exc.args[0]) if exc.args else "unregistered benchmark/split")
-    try:
-        if system_seg != cs.system_slug(row):
-            errors.append(
-                f"system path segment {system_seg!r} != canonical slug of in-file "
-                f"system ({cs.system_slug(row)!r})"
-            )
-    except KeyError as exc:
-        errors.append(str(exc.args[0]) if exc.args else "unregistered system")
+    *axis_segments, filename = parts
+    errors = _segment_errors(tuple(axis_segments))
+    for (label, registered, slug_fn), seg in zip(_PARTITION_AXES, axis_segments, strict=True):
+        errors.extend(_axis_errors(label, seg, registered, slug_fn, row))
 
     expected_name = f"{row.get('result_id', '')}.json"
     if filename != expected_name:
@@ -320,10 +351,10 @@ def iter_result_files(results_dir: Path = RESULTS_DIR) -> list[Path]:
         results_dir: The ``results/`` root.
 
     Returns:
-        Sorted result file paths under ``results/<benchmark>/<system>/``.
+        Sorted result file paths under ``results/<benchmark>/<harness>/<system>/``.
 
     """
-    return sorted(p for p in results_dir.glob("*/*/*.json") if p.is_file())
+    return sorted(p for p in results_dir.glob("*/*/*/*.json") if p.is_file())
 
 
 def _rel_to_results(path: Path, results_dir: Path) -> str:
@@ -375,7 +406,7 @@ def main(argv: list[str] | None = None) -> int:
 
     Args:
         argv: Optional list of explicit paths; defaults to every result file under
-            ``results/<benchmark>/<system>/``. Global ``result_id`` uniqueness is
+            ``results/<benchmark>/<harness>/<system>/``. Global ``result_id`` uniqueness is
             always checked across the WHOLE tree, regardless of ``argv``.
 
     Returns:
