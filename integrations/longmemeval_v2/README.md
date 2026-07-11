@@ -7,6 +7,10 @@ The upstream benchmark repository is:
 
 <https://github.com/xiaowu0162/LongMemEval-V2>
 
+The harness slug for runs produced through this integration is `lme-v2-official`
+(registered in `scripts/canonical_slugs.py`). The actual run and any leaderboard
+submission are gated and owner-approved.
+
 The integration is intentionally small:
 
 - [`engrava_memory.py`](engrava_memory.py) is a single LongMemEval-V2 memory
