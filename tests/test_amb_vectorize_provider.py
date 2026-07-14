@@ -21,6 +21,12 @@ from dataclasses import dataclass
 
 import pytest
 
+# The adapter runs against the real public engrava core + a sqlite driver. Those
+# are the `[engrava]` optional extra, absent from the CI `[dev]` test env — skip
+# the whole module there (mirrors tests/test_engrava_adapter.py).
+pytest.importorskip("engrava")
+pytest.importorskip("aiosqlite")
+
 # --- Stub the upstream AMB package the shim inherits from -------------------- #
 # Must be registered BEFORE importing the provider module (top-level import).
 if "memory_bench" not in sys.modules:

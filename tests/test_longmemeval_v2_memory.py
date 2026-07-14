@@ -18,6 +18,12 @@ import types
 
 import pytest
 
+# The backend runs against the real public engrava core + a sqlite driver — the
+# `[engrava]` optional extra, absent from the CI `[dev]` test env. Skip the whole
+# module there (mirrors tests/test_engrava_adapter.py).
+pytest.importorskip("engrava")
+pytest.importorskip("aiosqlite")
+
 # --- Stub the upstream LongMemEval-V2 harness API --------------------------- #
 # Must be registered BEFORE importing the backend module (top-level import).
 if "memory_modules" not in sys.modules:
