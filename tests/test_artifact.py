@@ -246,8 +246,8 @@ def test_validate_file_checks_local_artifact(
 
     row = valid_sovantica_row
     row["result_id"] = "r_local"
-    row["reproduction_artifact_url"] = "results/longmemeval-s/engrava/r_local/"
-    out = tmp_path / "longmemeval-s" / "engrava" / "r_local.json"
+    row["reproduction_artifact_url"] = "results/longmemeval-s/longmemeval-official/engrava/r_local/"
+    out = tmp_path / "longmemeval-s" / "longmemeval-official" / "engrava" / "r_local.json"
     out.parent.mkdir(parents=True)
     row["artifact_checksum"] = artifact.write_artifact(bundle, out.with_suffix(""))
     out.write_text(json.dumps(row))

@@ -21,7 +21,22 @@ module.exports = {
     "scope-enum": [
       2,
       "always",
-      ["adapters", "runners", "results", "schema", "scripts", "docs", "ci", "build", "deps", "deps-dev", "release"],
+      [
+        "adapters",
+        "runners",
+        "integrations",
+        "results",
+        "schema",
+        "scripts",
+        "validate",
+        "docs",
+        "changelog",
+        "ci",
+        "build",
+        "deps",
+        "deps-dev",
+        "release",
+      ],
     ],
 
     "scope-empty": [1, "never"],

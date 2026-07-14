@@ -141,12 +141,15 @@ def test_main_default_uses_env_dataset_and_emits_in_repo_artifact(
 
     rc = runner.main([])
     assert rc == 0
-    rows = list((results_dir / "longmemeval-s" / "engrava").glob("*.json"))
+    rows = list((results_dir / "longmemeval-s" / "longmemeval-official" / "engrava").glob("*.json"))
     assert len(rows) == 1
     row = json.loads(rows[0].read_text())
     artifact_dir = rows[0].with_suffix("")
     assert artifact_dir.is_dir()
-    assert row["reproduction_artifact_url"] == f"results/longmemeval-s/engrava/{row['result_id']}/"
+    assert (
+        row["reproduction_artifact_url"]
+        == f"results/longmemeval-s/longmemeval-official/engrava/{row['result_id']}/"
+    )
 
 
 def test_main_mock_run_emits(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -173,8 +176,9 @@ def test_main_mock_run_emits(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
         ]
     )
     assert rc == 0
-    assert (results_dir / "longmemeval-s" / "engrava" / "cli_cov_row.json").exists()
-    assert (results_dir / "longmemeval-s" / "engrava" / "cli_cov_row").is_dir()
+    part = results_dir / "longmemeval-s" / "longmemeval-official" / "engrava"
+    assert (part / "cli_cov_row.json").exists()
+    assert (part / "cli_cov_row").is_dir()
 
 
 def test_main_smoke_forces_free_no_emit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -226,7 +230,13 @@ def test_main_byo_reader_override_recorded_in_row(
     )
     assert rc == 0
     row = json.loads(
-        (results_dir / "longmemeval-s" / "engrava" / "byo_reader_row.json").read_text()
+        (
+            results_dir
+            / "longmemeval-s"
+            / "longmemeval-official"
+            / "engrava"
+            / "byo_reader_row.json"
+        ).read_text()
     )
     assert row["reader_endpoint"] == "https://openrouter.ai/api/v1"
     assert row["reader_model"] == "openai/gpt-oss-120b"
@@ -279,7 +289,13 @@ def test_main_byo_reader_with_key_env_stays_unverified(
     )
     assert rc == 0
     row = json.loads(
-        (results_dir / "longmemeval-s" / "engrava" / "byo_reader_keyenv_row.json").read_text()
+        (
+            results_dir
+            / "longmemeval-s"
+            / "longmemeval-official"
+            / "engrava"
+            / "byo_reader_keyenv_row.json"
+        ).read_text()
     )
     # The overridden reader is recorded; the row can never be a verified headline.
     assert row["reader_model"] == "openai/gpt-oss-120b"
@@ -327,11 +343,71 @@ def test_validate_main_on_tree(
     write_valid_artifact,
 ) -> None:
     write_valid_artifact(tmp_path, valid_sovantica_row)
-    out = tmp_path / "longmemeval-s" / "engrava" / f"{valid_sovantica_row['result_id']}.json"
+    out = (
+        tmp_path
+        / "longmemeval-s"
+        / "longmemeval-official"
+        / "engrava"
+        / f"{valid_sovantica_row['result_id']}.json"
+    )
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(valid_sovantica_row))
     monkeypatch.setattr(vr, "RESULTS_DIR", tmp_path)
     assert vr.main([str(out)]) == 0
+
+
+def test_validate_main_rejects_depth_three_stray(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # A stale/misplaced depth-3 result JSON (the OLD pre-migration location) must be
+    # DETECTED and REJECTED by the default (no-arg) validation run — it must never be
+    # silently skipped just because it sits below the canonical partition depth.
+    stray = tmp_path / "longmemeval-s" / "engrava" / "stale.json"
+    stray.parent.mkdir(parents=True)
+    stray.write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(vr, "RESULTS_DIR", tmp_path)
+    assert vr.main() == 1
+    out = capsys.readouterr().out
+    assert "forbidden location" in out
+
+
+def test_validate_main_rejects_stray_under_schema_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # The schema exclusion is the EXACT file, not the whole schema/ directory: a stray
+    # result-like JSON dropped under results/schema/ must still be rejected, while the
+    # real schema/results.schema.json does NOT trigger a false positive.
+    schema_dir = tmp_path / "schema"
+    schema_dir.mkdir()
+    (schema_dir / "results.schema.json").write_text("{}", encoding="utf-8")
+    (schema_dir / "stale.json").write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(vr, "RESULTS_DIR", tmp_path)
+    assert vr.main() == 1
+    out = capsys.readouterr().out
+    assert "forbidden location" in out
+    assert "schema/stale.json" in out
+    assert "schema/results.schema.json" not in out
+
+
+def test_validate_main_allows_bundle_json_at_depth_five(
+    tmp_path: Path,
+    valid_sovantica_row: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+    write_valid_artifact,
+) -> None:
+    # The forbidden-location sweep must NOT false-positive on the schema file or on the
+    # bundle's depth-5 config.json / manifest.json — the default run stays green.
+    write_valid_artifact(tmp_path, valid_sovantica_row)
+    out = emit.result_path(valid_sovantica_row, results_dir=tmp_path)
+    out.write_text(json.dumps(valid_sovantica_row), encoding="utf-8")
+    schema_dir = tmp_path / "schema"
+    schema_dir.mkdir()
+    (schema_dir / "results.schema.json").write_text("{}", encoding="utf-8")
+    bundle_dir = emit.artifact_path(valid_sovantica_row, results_dir=tmp_path)
+    assert (bundle_dir / "config.json").is_file()
+    assert (bundle_dir / "manifest.json").is_file()
+    monkeypatch.setattr(vr, "RESULTS_DIR", tmp_path)
+    assert vr.main() == 0
 
 
 def test_build_leaderboard_main(
@@ -341,7 +417,13 @@ def test_build_leaderboard_main(
     write_valid_artifact,
 ) -> None:
     write_valid_artifact(tmp_path, valid_sovantica_row)
-    out = tmp_path / "longmemeval-s" / "engrava" / f"{valid_sovantica_row['result_id']}.json"
+    out = (
+        tmp_path
+        / "longmemeval-s"
+        / "longmemeval-official"
+        / "engrava"
+        / f"{valid_sovantica_row['result_id']}.json"
+    )
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(valid_sovantica_row))
     monkeypatch.setattr(bl, "RESULTS_DIR", tmp_path)

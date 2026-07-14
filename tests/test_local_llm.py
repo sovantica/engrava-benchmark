@@ -213,7 +213,15 @@ def test_local_reader_canonical_judge_row_records_actual_reader(tmp_path: Path) 
         emit_result=True,
         results_dir=tmp_path,
     )
-    row = json.loads((tmp_path / "longmemeval-s" / "engrava" / "local_reader_row.json").read_text())
+    row = json.loads(
+        (
+            tmp_path
+            / "longmemeval-s"
+            / "longmemeval-official"
+            / "engrava"
+            / "local_reader_row.json"
+        ).read_text()
+    )
     assert row["reader_endpoint"] == "http://msi.example.net:11434"
     assert row["reader_model"] == "gemma3:4b"
     assert row["reader_snapshot"] == "gemma3:4b"  # NOT the canonical gpt-4o snapshot

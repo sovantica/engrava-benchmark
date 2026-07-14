@@ -1,8 +1,9 @@
 """Canonical path slugs for the partitioned results store.
 
-Results are partitioned on disk as ``results/<benchmark>/<system>/<result_id>.json``.
-The two directory segments are **canonical slugs** derived from a result row's own
-``benchmark`` (+ ``split``) and ``system`` fields, so the directory is a faithful
+Results are partitioned on disk as
+``results/<benchmark>/<harness>/<system>/<result_id>.json``. The three directory
+segments are **canonical slugs** derived from a result row's own ``benchmark`` (+
+``split``), ``harness.name``, and ``system`` fields, so the directory is a faithful
 projection of the content — never an independent label that can drift from it.
 
 A slug must:
@@ -31,6 +32,18 @@ _BENCHMARK_SLUGS: dict[tuple[str, str], str] = {
     ("longmemeval", "s"): "longmemeval-s",
 }
 
+# Registered canonical harness slugs. Keyed by the in-file ``harness.name`` value.
+# The harness (runner) fixes the reader, judge, prompt, context format, and scorer, so
+# it is an explicit identity/comparability axis AND a path segment. A new harness is a
+# deliberate, reviewable addition here.
+#
+#   harness_name -> slug
+_HARNESS_SLUGS: dict[str, str] = {
+    "longmemeval-official": "longmemeval-official",
+    "amb-vectorize": "amb-vectorize",
+    "lme-v2-official": "lme-v2-official",
+}
+
 # Registered canonical system slugs. Keyed by the in-file ``system`` value.
 _SYSTEM_SLUGS: dict[str, str] = {
     "Engrava": "engrava",
@@ -38,6 +51,7 @@ _SYSTEM_SLUGS: dict[str, str] = {
 
 # The flat set of every registered slug (for membership checks / messages).
 REGISTERED_BENCHMARK_SLUGS: frozenset[str] = frozenset(_BENCHMARK_SLUGS.values())
+REGISTERED_HARNESS_SLUGS: frozenset[str] = frozenset(_HARNESS_SLUGS.values())
 REGISTERED_SYSTEM_SLUGS: frozenset[str] = frozenset(_SYSTEM_SLUGS.values())
 
 
@@ -69,6 +83,31 @@ def benchmark_slug(row: dict[str, Any]) -> str:
         )
         raise KeyError(msg)
     return _BENCHMARK_SLUGS[key]
+
+
+def harness_slug(row: dict[str, Any]) -> str:
+    """Return the registered canonical harness slug for a result row.
+
+    The harness (runner) fixes the reader, judge, prompt, context format, and
+    scorer, so it is both a path segment and a comparability axis.
+
+    Args:
+        row: The result row (uses its ``harness.name`` field).
+
+    Returns:
+        The canonical harness directory slug.
+
+    Raises:
+        KeyError: If the ``harness.name`` value is not registered.
+
+    """
+    harness = row.get("harness")
+    name = harness.get("name", "") if isinstance(harness, dict) else ""
+    name = str(name)
+    if name not in _HARNESS_SLUGS:
+        msg = f"unregistered harness: {name!r}; register it in canonical_slugs.py"
+        raise KeyError(msg)
+    return _HARNESS_SLUGS[name]
 
 
 def system_slug(row: dict[str, Any]) -> str:

@@ -7,6 +7,8 @@
         "benchmark_version": "v1",
         "dataset_revision": "longmemeval_s_cleaned@sha256:d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442",
         "split": "s_full_500",
+        "harness.name": "longmemeval-official",
+        "harness.version": "engrava-benchmark@0d1fde5",
         "reader_snapshot": "gpt-4o-2024-08-06",
         "reader_endpoint": "api.openai.com",
         "judge_snapshot": "gpt-4o-2024-08-06",
@@ -31,6 +33,11 @@
           "engrava_version": "0.5.0",
           "engrava_dist_hash": "sha256:bff06751b1cfe35a344ac1596e876b7d382014eb3b6a6c0e62701fcb9ead9e63",
           "runner_commit": "engrava-benchmark@0d1fde5",
+          "harness": {
+            "name": "longmemeval-official",
+            "source": "in-repo",
+            "version": "engrava-benchmark@0d1fde5"
+          },
           "system_config": {
             "adapter": "engrava_adapter",
             "embedder": "text-embedding-3-small",
@@ -91,7 +98,7 @@
             }
           },
           "n": 500,
-          "reproduction_artifact_url": "results/longmemeval-s/engrava/lme-s_engrava_0.5.0_2026-07-10/",
+          "reproduction_artifact_url": "results/longmemeval-s/longmemeval-official/engrava/lme-s_engrava_0.5.0_2026-07-10/",
           "artifact_checksum": "sha256:3d5e53b13da80cdb4c42f60091ff920ba48003aca313e3230d0232f5667460e1",
           "artifact_license": "MIT",
           "citation": null,

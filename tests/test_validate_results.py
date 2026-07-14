@@ -56,6 +56,43 @@ def test_sovantica_run_requires_official_judge_model(
     assert _schema_errors(row) != []
 
 
+def test_longmemeval_official_harness_pins_judge(valid_sovantica_row: dict[str, Any]) -> None:
+    """The judge pin is keyed on the harness: longmemeval-official pins gpt-4o."""
+    row = valid_sovantica_row
+    assert row["harness"]["name"] == "longmemeval-official"
+    row["judge_snapshot"] = "gemini-2.0-flash-001"  # not the official snapshot
+    assert _schema_errors(row) != []
+
+
+def test_non_official_harness_allows_non_gpt4o_judge(valid_sovantica_row: dict[str, Any]) -> None:
+    """A different harness (still sovantica-run) may use a non-gpt-4o judge and validate.
+
+    The judge pin is keyed on ``harness.name == "longmemeval-official"``, NOT on
+    provenance, so a run on a different (external) harness — provenance sovantica-run,
+    but not the official harness — stays schema-valid with a non-gpt-4o judge.
+    """
+    row = valid_sovantica_row
+    row["harness"] = {
+        "name": "external-harness",
+        "source": "https://example.test/external-harness",
+        "version": "external@1.0",
+    }
+    row["judge_model"] = "gemini-2.0-flash"
+    row["judge_snapshot"] = "gemini-2.0-flash-001"
+    row["judge_endpoint"] = "generativelanguage.googleapis.com"
+    # Still a sovantica-run row => citation stays null (unchanged conditional).
+    assert row["provenance"] == "sovantica-run"
+    assert row["citation"] is None
+    assert _schema_errors(row) == []
+
+
+def test_missing_harness_is_rejected(valid_sovantica_row: dict[str, Any]) -> None:
+    """The harness provenance block is required."""
+    row = valid_sovantica_row
+    del row["harness"]
+    assert _schema_errors(row) != []
+
+
 def test_conditionals_require_provenance_present() -> None:
     """The provenance conditionals must not fire on a row missing provenance.
 
@@ -133,7 +170,13 @@ def test_validate_file_roundtrip(
     tmp_path: Path, valid_sovantica_row: dict[str, Any], write_valid_artifact
 ) -> None:
     write_valid_artifact(tmp_path, valid_sovantica_row)
-    path = tmp_path / "longmemeval-s" / "engrava" / f"{valid_sovantica_row['result_id']}.json"
+    path = (
+        tmp_path
+        / "longmemeval-s"
+        / "longmemeval-official"
+        / "engrava"
+        / f"{valid_sovantica_row['result_id']}.json"
+    )
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(valid_sovantica_row), encoding="utf-8")
     assert vr.validate_file(path, VALIDATOR, results_dir=tmp_path) == []

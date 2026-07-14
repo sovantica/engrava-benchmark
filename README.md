@@ -71,7 +71,7 @@ headline requires `reader_endpoint = api.openai.com`. See
 
 ## How the leaderboard works
 
-- Each result is a `results/<benchmark>/<system>/<result_id>.json` row pinning every axis that moves the number
+- Each result is a `results/<benchmark>/<harness>/<system>/<result_id>.json` row pinning every axis that moves the number (including the harness that fixes reader+judge+prompt+scorer)
   (engrava version + dist hash, runner commit, reader/judge snapshots + endpoints,
   scorer version, retriever/granularity/`top_k`, plus a reproduction artifact + checksum).
 - CI validates each row against the schema + cross-field rules, then rebuilds

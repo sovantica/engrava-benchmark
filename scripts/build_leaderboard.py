@@ -9,10 +9,13 @@ Inclusion rule (the publication gate):
     reach the public board until a human promotes it to ``verified`` in review.
 
 Rows are grouped into **comparability segments** keyed by the identity tuple
-``(benchmark, benchmark_version, dataset_revision, split, reader_snapshot,
-reader_endpoint, judge_snapshot, judge_endpoint, scorer_version)`` — rows in
-different segments are never co-ranked (the reader/judge comparability guard).
-Within a segment, rows are ordered by ``metrics.overall_micro`` descending.
+``(benchmark, benchmark_version, dataset_revision, split, harness.name,
+harness.version, reader_snapshot, reader_endpoint, judge_snapshot, judge_endpoint,
+scorer_version)`` — rows in different segments are never co-ranked (the
+harness/reader/judge comparability guard). The harness fixes reader+judge+prompt+
+context-format+scorer, so it changes what a number MEANS and is an explicit
+comparability axis: cross-harness rows are never co-ranked. Within a segment, rows
+are ordered by ``metrics.overall_micro`` descending.
 """
 
 from __future__ import annotations
@@ -25,28 +28,59 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 RESULTS_DIR = REPO_ROOT / "results"
 OUTPUT_PATH = REPO_ROOT / "leaderboard.json"
 SCHEMA_VERSION = "1.0"
-_SEGMENT_KEYS = (
+# Flat (top-level) comparability fields, read directly off the row.
+_FLAT_SEGMENT_KEYS = (
     "benchmark",
     "benchmark_version",
     "dataset_revision",
     "split",
+)
+# Nested harness comparability fields, read off ``row["harness"]`` — the harness fixes
+# reader+judge+prompt+context-format+scorer, so cross-harness rows must never co-rank.
+_HARNESS_SEGMENT_KEYS = (
+    "name",
+    "version",
+)
+# Remaining flat comparability fields.
+_READER_JUDGE_SEGMENT_KEYS = (
     "reader_snapshot",
     "reader_endpoint",
     "judge_snapshot",
     "judge_endpoint",
     "scorer_version",
 )
+# The full ordered list of comparability dict keys (harness fields namespaced).
+_SEGMENT_KEYS = (
+    *_FLAT_SEGMENT_KEYS,
+    *(f"harness.{k}" for k in _HARNESS_SEGMENT_KEYS),
+    *_READER_JUDGE_SEGMENT_KEYS,
+)
+
+
+def _harness_value(row: dict[str, Any], key: str) -> Any:  # noqa: ANN401 - JSON scalar
+    """Return ``row["harness"][key]`` (or ``None`` if the harness block is absent)."""
+    harness = row.get("harness")
+    return harness.get(key) if isinstance(harness, dict) else None
 
 
 def _segment_key(row: dict[str, Any]) -> tuple[Any, ...]:
-    """Return the comparability-tuple key for a row."""
-    return tuple(row.get(k) for k in _SEGMENT_KEYS)
+    """Return the comparability-tuple key for a row.
+
+    The tuple spans the flat benchmark/dataset fields, the nested harness identity
+    (``harness.name`` + ``harness.version``), and the reader/judge/scorer fields —
+    so cross-harness rows land in different segments and are never co-ranked.
+    """
+    return (
+        *(row.get(k) for k in _FLAT_SEGMENT_KEYS),
+        *(_harness_value(row, k) for k in _HARNESS_SEGMENT_KEYS),
+        *(row.get(k) for k in _READER_JUDGE_SEGMENT_KEYS),
+    )
 
 
 def load_verified_rows(results_dir: Path) -> list[dict[str, Any]]:
     """Load every verified row from the partitioned results tree.
 
-    Loads depth-3 result rows only (``results/<benchmark>/<system>/<id>.json``) and
+    Loads result rows only (``results/<benchmark>/<harness>/<system>/<id>.json``) and
     keeps rows with ``verification_status == "verified"``. Segmentation downstream
     stays keyed off the in-file comparability fields, not directory position.
 

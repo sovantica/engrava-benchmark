@@ -25,9 +25,14 @@ Rows are co-ranked **only** when they share this full tuple:
 
 ```
 (benchmark, benchmark_version, dataset_revision, split,
+ harness.name, harness.version,
  reader_snapshot, reader_endpoint, judge_snapshot, judge_endpoint, scorer_version)
 ```
 
+- The **harness** (runner) fixes the reader, judge, prompt, context format, and scorer,
+  so it changes what a number *means*. It is therefore an explicit comparability axis:
+  cross-harness rows are never co-ranked, and the harness is also a path segment
+  (`results/<benchmark>/<harness>/<system>/…`).
 - It is the **full identity**, not just the model family — a `gpt-4o-2024-08-06` row and
   a `gpt-4o-mini` row never share a column, and neither do two "gpt-4o" rows judged on
   different endpoints or scorer commits.

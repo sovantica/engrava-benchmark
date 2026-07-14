@@ -76,8 +76,9 @@ reader/judge snapshot is itself a comparability axis, below).
 Why disclose it: a memory layer that uses a generative LLM and one that does not are
 different classes of system on cost, latency, and privacy, so a fair read needs to know
 which is which. `group` is a descriptive label on each row, **not** a separate ranking
-bucket: the board segments and ranks rows by their comparability key (reader, judge,
-scorer, dataset, and split — see [Comparability](#comparability) for the exact tuple), and
+bucket: the board segments and ranks rows by their comparability key (harness, reader,
+judge, scorer, dataset, and split — see [Comparability](#comparability) for the exact
+tuple), and
 a single segment may contain rows from either group — the label tells you *how* a system
 reaches its number, compared on equal footing within the same comparability segment.
 

@@ -3,11 +3,21 @@
 from __future__ import annotations
 
 import copy
+import sys
+from pathlib import Path
 from typing import Any
 
-import pytest
+# Make the repo root importable so tests can import the top-level ``integrations``
+# package, which is intentionally NOT a distributed package (it is shim code copied
+# into external harness checkouts, and is excluded from lint/typecheck/coverage).
+# Under ``pytest -q`` (CI) the cwd is not on sys.path, unlike ``python -m pytest``.
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
-from runners.longmemeval import artifact, emit
+import pytest  # noqa: E402
+
+from runners.longmemeval import artifact, emit  # noqa: E402
 
 
 @pytest.fixture
@@ -31,6 +41,11 @@ def valid_sovantica_row() -> dict[str, Any]:
             "engrava_version": "0.4.0",
             "engrava_dist_hash": "sha256:deadbeef",
             "runner_commit": "engrava-benchmark@abc1234",
+            "harness": {
+                "name": "longmemeval-official",
+                "source": "in-repo",
+                "version": "engrava-benchmark@abc1234",
+            },
             "system_config": {
                 "adapter": "engrava_adapter",
                 "embedder": "text-embedding-3-small",
@@ -66,7 +81,8 @@ def valid_sovantica_row() -> dict[str, Any]:
             },
             "n": 500,
             "reproduction_artifact_url": (
-                "results/longmemeval-s/engrava/lme-s_engrava_0.4.0_2026-06-20_a1b2c3/"
+                "results/longmemeval-s/longmemeval-official/engrava/"
+                "lme-s_engrava_0.4.0_2026-06-20_a1b2c3/"
             ),
             "artifact_checksum": "sha256:" + "c" * 64,
             "artifact_license": "MIT",

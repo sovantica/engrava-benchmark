@@ -10,7 +10,13 @@ import scripts.build_leaderboard as bl
 
 
 def _write_row(results_dir: Any, row: dict[str, Any]) -> None:
-    out = results_dir / "longmemeval-s" / "engrava" / f"{row['result_id']}.json"
+    out = (
+        results_dir
+        / "longmemeval-s"
+        / "longmemeval-official"
+        / "engrava"
+        / f"{row['result_id']}.json"
+    )
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(row), encoding="utf-8")
 
@@ -50,6 +56,35 @@ def test_segments_by_reader_judge(valid_sovantica_row: dict[str, Any]) -> None:
     b["reader_snapshot"] = "gpt-4o-mini-2024-07-18"  # different reader -> different segment
     board = bl.build_leaderboard([a, b])
     assert len(board["segments"]) == 2
+
+
+def test_segments_by_harness(valid_sovantica_row: dict[str, Any]) -> None:
+    """Cross-harness rows land in different segments and are never co-ranked."""
+    a = valid_sovantica_row
+    b = copy.deepcopy(valid_sovantica_row)
+    b["result_id"] = "b"
+    b["harness"] = {
+        "name": "external-harness",
+        "source": "https://example.test/external-harness",
+        "version": "external@1.0",
+    }
+    board = bl.build_leaderboard([a, b])
+    assert len(board["segments"]) == 2
+    names = {seg["comparability"]["harness.name"] for seg in board["segments"]}
+    assert names == {"longmemeval-official", "external-harness"}
+
+
+def test_segments_by_harness_version(valid_sovantica_row: dict[str, Any]) -> None:
+    """Same harness name but a different version is a different comparability segment."""
+    a = valid_sovantica_row
+    b = copy.deepcopy(valid_sovantica_row)
+    b["result_id"] = "b"
+    b["harness"] = dict(a["harness"])
+    b["harness"]["version"] = "engrava-benchmark@deadbee"
+    board = bl.build_leaderboard([a, b])
+    assert len(board["segments"]) == 2
+    versions = {seg["comparability"]["harness.version"] for seg in board["segments"]}
+    assert versions == {a["harness"]["version"], "engrava-benchmark@deadbee"}
 
 
 def test_ranks_within_segment_by_overall_micro(valid_sovantica_row: dict[str, Any]) -> None:

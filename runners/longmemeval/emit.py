@@ -128,6 +128,15 @@ def build_result(
     judge = config["judge"]
     eng_version = engrava_version()
     memory_pipeline_llms: list[dict[str, Any]] = []  # stock engrava => Group A
+    harness_cfg = config["harness"]
+    # The harness fixes reader+judge+prompt+context-format+scorer, so it is the coarse
+    # identity axis above the finer version pins. For the native runner the version is
+    # the current runner commit unless config overrides it.
+    harness = {
+        "name": harness_cfg["name"],
+        "source": harness_cfg["source"],
+        "version": harness_cfg.get("version") or runner_commit(),
+    }
     row = {
         "schema_version": "1.0",
         "result_id": result_id,
@@ -145,6 +154,7 @@ def build_result(
         "engrava_version": eng_version,
         "engrava_dist_hash": engrava_dist_hash(),
         "runner_commit": runner_commit(),
+        "harness": harness,
         "system_config": {
             "adapter": "engrava_adapter",
             "embedder": config["embedder"],
@@ -180,10 +190,10 @@ def build_result(
 
 
 def result_path(row: Mapping[str, Any], *, results_dir: Path = RESULTS_DIR) -> Path:
-    """Return the partitioned path for a row: ``<benchmark>/<system>/<result_id>.json``.
+    """Return the partitioned path: ``<benchmark>/<harness>/<system>/<result_id>.json``.
 
-    The two directory segments are the row's own canonical benchmark + system
-    slugs, so the path is a faithful projection of the content.
+    The three directory segments are the row's own canonical benchmark, harness, and
+    system slugs, so the path is a faithful projection of the content.
 
     Args:
         row: The result row.
@@ -196,8 +206,9 @@ def result_path(row: Mapping[str, Any], *, results_dir: Path = RESULTS_DIR) -> P
     from scripts import canonical_slugs as cs  # noqa: PLC0415
 
     benchmark = cs.benchmark_slug(dict(row))
+    harness = cs.harness_slug(dict(row))
     system = cs.system_slug(dict(row))
-    return results_dir / benchmark / system / f"{row['result_id']}.json"
+    return results_dir / benchmark / harness / system / f"{row['result_id']}.json"
 
 
 def artifact_path(row: Mapping[str, Any], *, results_dir: Path = RESULTS_DIR) -> Path:
@@ -208,7 +219,7 @@ def artifact_path(row: Mapping[str, Any], *, results_dir: Path = RESULTS_DIR) ->
         results_dir: The ``results/`` root (default: the repo ``results/``).
 
     Returns:
-        ``results/<benchmark>/<system>/<result_id>/`` as a filesystem path.
+        ``results/<benchmark>/<harness>/<system>/<result_id>/`` as a filesystem path.
 
     """
     return result_path(row, results_dir=results_dir).with_suffix("")
@@ -229,7 +240,10 @@ def artifact_reference(row: Mapping[str, Any]) -> str:
     """
     from scripts import canonical_slugs as cs  # noqa: PLC0415
 
-    return f"results/{cs.benchmark_slug(dict(row))}/{cs.system_slug(dict(row))}/{row['result_id']}/"
+    return (
+        f"results/{cs.benchmark_slug(dict(row))}/{cs.harness_slug(dict(row))}/"
+        f"{cs.system_slug(dict(row))}/{row['result_id']}/"
+    )
 
 
 def result_reference(row: Mapping[str, Any]) -> str:
@@ -259,7 +273,7 @@ def _check_unique_result_id(row: Mapping[str, Any], *, out: Path, results_dir: P
 
 
 def write_and_validate(row: Mapping[str, Any], *, results_dir: Path = RESULTS_DIR) -> Path:
-    """Write a row to ``results/<benchmark>/<system>/<result_id>.json`` and validate it.
+    """Write a row to ``results/<benchmark>/<harness>/<system>/<result_id>.json``, validated.
 
     Args:
         row: The result row.

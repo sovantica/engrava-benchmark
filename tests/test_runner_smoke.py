@@ -73,7 +73,9 @@ def test_smoke_pipeline_end_to_end(tmp_path: Path) -> None:
 
     # The emitted file exists at its partitioned path + is schema/layout-valid
     # (write_and_validate raises otherwise).
-    emitted = tmp_path / "longmemeval-s" / "engrava" / "smoke_test_row.json"
+    emitted = (
+        tmp_path / "longmemeval-s" / "longmemeval-official" / "engrava" / "smoke_test_row.json"
+    )
     assert emitted.exists()
     row = json.loads(emitted.read_text())
     assert row["provenance"] == "sovantica-run"
