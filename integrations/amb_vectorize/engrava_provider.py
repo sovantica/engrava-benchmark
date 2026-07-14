@@ -83,6 +83,17 @@ class _EmbeddingProvider(Protocol):
 
     model_name: str
 
+    async def embed(self, text: str) -> list[float]:
+        """Embed a single query string.
+
+        Args:
+            text: The string to embed.
+
+        Returns:
+            The embedding vector for ``text``.
+
+        """
+
     async def embed_batch(self, texts: list[str]) -> list[list[float]]:
         """Embed a batch of text strings.
 
@@ -121,6 +132,18 @@ class _DeterministicEmbeddingProvider:
     def _vector(self, text: str) -> list[float]:
         digest = hashlib.sha256(text.encode("utf-8")).digest()
         return [(float(digest[idx % len(digest)]) / 127.5) - 1.0 for idx in range(self._dimension)]
+
+    async def embed(self, text: str) -> list[float]:
+        """Embed one string deterministically.
+
+        Args:
+            text: The string to embed.
+
+        Returns:
+            The deterministic vector for ``text``.
+
+        """
+        return self._vector(text)
 
     async def embed_batch(self, texts: list[str]) -> list[list[float]]:
         """Embed a batch of strings deterministically.

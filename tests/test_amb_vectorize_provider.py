@@ -77,18 +77,13 @@ class _FakeEmbedder:
         return [self._vector(text) for text in texts]
 
 
-@pytest.fixture(autouse=True)
-def _offline_embeddings(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Force the provider onto the offline fake embedder (no network, no download)."""
+@pytest.fixture
+def provider(monkeypatch: pytest.MonkeyPatch) -> EngravaMemoryProvider:
+    """A provider on the offline fake embedder (no network, no download)."""
     monkeypatch.setattr(
         "integrations.amb_vectorize.engrava_provider._create_embedding_provider",
         lambda: _FakeEmbedder(),
     )
-
-
-@pytest.fixture
-def provider() -> EngravaMemoryProvider:
-    """A provider on the offline fake embedder, cleaned up after the test."""
     prov = EngravaMemoryProvider(k=10)
     try:
         yield prov
@@ -175,8 +170,26 @@ def test_cleanup_is_idempotent(provider: EngravaMemoryProvider) -> None:
     provider.cleanup()  # second call must be a no-op, not a crash
 
 
-def test_sync_call_inside_running_loop_raises() -> None:
+def test_builtin_deterministic_backend_ingests_and_retrieves(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The shim's own ``deterministic`` embedding backend supports ingest AND retrieve.
+
+    Uses the real ``ENGRAVA_AMB_EMBED_BACKEND=deterministic`` path (not the fake),
+    so retrieval — which embeds the query when ``query_vector`` is None — exercises
+    the provider's ``embed`` method end to end.
+    """
+    monkeypatch.setenv("ENGRAVA_AMB_EMBED_BACKEND", "deterministic")
+    prov = EngravaMemoryProvider(k=10)
+    try:
+        prov.ingest([FakeDoc(id="d1", content="Neptune is the eighth planet from the sun.", user_id="u1")])
+        docs, _ = prov.retrieve("Neptune eighth planet", k=5, user_id="u1")
+        assert {d.id for d in docs} == {"d1"}
+    finally:
+        prov.cleanup()
+
+
+def test_sync_call_inside_running_loop_raises(monkeypatch: pytest.MonkeyPatch) -> None:
     """Driving the sync API from inside a running loop raises ``ProviderError``."""
+    monkeypatch.setenv("ENGRAVA_AMB_EMBED_BACKEND", "deterministic")  # cheap offline init
     prov = EngravaMemoryProvider()
 
     async def _call() -> None:

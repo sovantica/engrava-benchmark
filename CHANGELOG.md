@@ -5,7 +5,7 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
-## [0.2.0] - 2026-07-11
+## [0.2.0] - 2026-07-14
 
 ### Added
 
@@ -22,6 +22,11 @@ All notable changes to this project are documented here. Format follows
   `results/<benchmark>/<harness>/<system>/<result_id>.json` (previously
   `results/<benchmark>/<system>/…`), and leaderboard comparability segments key on
   the harness — results from different harnesses are never co-ranked.
+
+### Fixed
+
+- Let the AMB provider's offline smoke embedding backend answer queries, not just
+  index documents (it was missing the single-string embed used at retrieval time).
 
 ## [0.1.0]
 
