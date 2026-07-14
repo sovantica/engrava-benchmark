@@ -3,11 +3,21 @@
 from __future__ import annotations
 
 import copy
+import sys
+from pathlib import Path
 from typing import Any
 
-import pytest
+# Make the repo root importable so tests can import the top-level ``integrations``
+# package, which is intentionally NOT a distributed package (it is shim code copied
+# into external harness checkouts, and is excluded from lint/typecheck/coverage).
+# Under ``pytest -q`` (CI) the cwd is not on sys.path, unlike ``python -m pytest``.
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
-from runners.longmemeval import artifact, emit
+import pytest  # noqa: E402
+
+from runners.longmemeval import artifact, emit  # noqa: E402
 
 
 @pytest.fixture
