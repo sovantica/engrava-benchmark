@@ -79,6 +79,13 @@ jobs:
       # here instead of skipping. It stays offline and spends nothing: OPENAI_API_KEY is
       # never set in CI, so the docs test takes the free --smoke path.
       - run: pip install -e ".[dev,engrava]"
+      # Cache the sentence-transformers model (all-MiniLM-L12-v2) the smoke path
+      # downloads, so it isn't re-fetched on every run. First run populates it.
+      - name: Cache HuggingFace models
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-all-minilm-l12-v2
       - run: pytest -q
   dependency-audit:
     name: Dependency CVE audit
@@ -89,12 +96,10 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v6
         with: { python-version: "3.12", cache: "pip" }
-      # Install the package NON-editable so pip-audit can resolve and audit the
-      # distribution itself. An editable install (`-e`) builds an `*.editable`
-      # wheel that pip-audit reports as a SkippedDependency, and `--strict`
-      # hard-fails on ANY skip. A plain `pip install .` produces a normal,
-      # auditable distribution, so --strict still fails on a real CVE or a
-      # collection failure — without tripping on the self-package.
+      # Install the package NON-editable so its third-party dependencies land in
+      # the environment, then uninstall the self-package before auditing. An
+      # editable install (`-e`) builds an `*.editable` wheel that pip-audit
+      # reports as a SkippedDependency, and `--strict` hard-fails on ANY skip.
       - name: Install package
         run: |
           # Upgrade pip first: pip-audit --strict audits the whole environment,
@@ -103,6 +108,11 @@ jobs:
           # ignoring the finding.
           python -m pip install --upgrade pip
           pip install .
+          # Uninstall the self-package: engrava-benchmark is not on PyPI (the repo
+          # is the unit of distribution), so pip-audit cannot resolve it and
+          # `--strict` would hard-fail on it. We only want to audit third-party
+          # deps for CVEs, which remain installed after this.
+          pip uninstall -y engrava-benchmark
       - name: Run pip-audit
         run: |
           pip install pip-audit
