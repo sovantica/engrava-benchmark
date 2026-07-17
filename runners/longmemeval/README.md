@@ -68,7 +68,9 @@ By default the runner uses `config/default.json`, `--models openai`, and `--emit
 It writes both the result row and the sibling reproduction-artifact directory under
 `results/<benchmark>/<harness>/<system>/`. The emitted row starts at
 `verification_status: unverified`; a maintainer promotes it to `verified` after
-review. Do not run this without the cost owner's go-ahead.
+review. Do not run this without the cost owner's go-ahead. Pass `--results-dir <dir>`
+to write the row + artifact bundle into a chosen directory instead of the canonical
+`results/` tree (also makes `--smoke` emit, which it otherwise skips).
 
 > **Run the headline with no flags.** The bare `python runners/longmemeval/run.py`
 > **is** the canonical configuration — `config/default.json` + `--models openai` +
