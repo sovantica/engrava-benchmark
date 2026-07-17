@@ -34,9 +34,13 @@ python -m venv .venv && source .venv/bin/activate
 make install
 pip install "engrava==0.5.0"   # <- the engrava_version from the result row
 
-# 3. point the runner at the public LongMemEval-S dataset
+# 3. point the runner at the dataset this result pins: the CLEANED LongMemEval-S split
+#    from Hugging Face `xiaowu0162/longmemeval-cleaned` (file: longmemeval_s_cleaned.json),
+#    NOT the raw longmemeval_s.json. Verify you have the right file — its sha256 must equal
+#    the `dataset_revision` in the result row
+#    (longmemeval_s_cleaned@sha256:d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442).
 export OPENAI_API_KEY=...          # OpenAI-direct reader + judge; never committed
-export ENGRAVA_BENCH_LONGMEMEVAL_S=<longmemeval_s.json>
+export ENGRAVA_BENCH_LONGMEMEVAL_S=<path-to>/longmemeval_s_cleaned.json
 
 # 4. run the OFFICIAL config — no flags. The bare command IS the canonical run.
 python runners/longmemeval/run.py

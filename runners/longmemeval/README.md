@@ -50,7 +50,7 @@ run; set the public dataset path first:
 
 ```bash
 export OPENAI_API_KEY=...      # OpenAI-direct; never committed
-export ENGRAVA_BENCH_LONGMEMEVAL_S=<longmemeval_s.json>
+export ENGRAVA_BENCH_LONGMEMEVAL_S=<path-to>/longmemeval_s_cleaned.json  # the CLEANED split (see Dataset below)
 pip install "engrava==<version>"   # the version the result will disclose
 python runners/longmemeval/run.py
 # then: make validate
@@ -125,9 +125,14 @@ python runners/longmemeval/run.py \
 ## Dataset
 
 The LongMemEval `_s` full-500 split is **not vendored** here (load it from a
-configured local path via `--dataset`). Obtain it from the official source:
-<https://github.com/xiaowu0162/LongMemEval> (the `dataset_revision` recorded in the
-config / result pins which revision was used).
+configured local path via `--dataset` or `ENGRAVA_BENCH_LONGMEMEVAL_S`). The published
+result uses the authors' **cleaned** release — Hugging Face
+[`xiaowu0162/longmemeval-cleaned`](https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned),
+file `longmemeval_s_cleaned.json` — **not** the raw `longmemeval_s.json` from the code repo.
+To reproduce the exact number, use that cleaned file and confirm its **sha256 matches the
+`dataset_revision`** pinned in the config / result row
+(`longmemeval_s_cleaned@sha256:d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442`);
+a different revision or the raw split will produce a different score.
 
 ## Official scorer (UNMODIFIED, pinned)
 
