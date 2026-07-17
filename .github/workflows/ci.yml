@@ -76,6 +76,33 @@ jobs:
         with: { python-version: "${{ matrix.python-version }}", cache: "pip" }
       - run: pip install -e ".[dev]"
       - run: pytest -q
+  dependency-audit:
+    name: Dependency CVE audit
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with: { python-version: "3.12", cache: "pip" }
+      # Install the package NON-editable so pip-audit can resolve and audit the
+      # distribution itself. An editable install (`-e`) builds an `*.editable`
+      # wheel that pip-audit reports as a SkippedDependency, and `--strict`
+      # hard-fails on ANY skip. A plain `pip install .` produces a normal,
+      # auditable distribution, so --strict still fails on a real CVE or a
+      # collection failure — without tripping on the self-package.
+      - name: Install package
+        run: |
+          # Upgrade pip first: pip-audit --strict audits the whole environment,
+          # including pip itself, and the runner image can ship a pip with a
+          # freshly disclosed CVE. Upgrading clears it for real rather than
+          # ignoring the finding.
+          python -m pip install --upgrade pip
+          pip install .
+      - name: Run pip-audit
+        run: |
+          pip install pip-audit
+          pip-audit --strict
   validate-results:
     runs-on: ubuntu-latest   # ALWAYS runs (result-row/leaderboard validity always matters)
     steps:
@@ -91,7 +118,7 @@ jobs:
             echo "leaderboard.json out of sync"; git --no-pager diff -- leaderboard.json; exit 1
           fi
   ci-gate:
-    needs: [changes, lint, typecheck, test, validate-results]
+    needs: [changes, lint, typecheck, test, dependency-audit, validate-results]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -104,7 +131,7 @@ jobs:
             fi
           done
           # code jobs may be success OR skipped (results-only PR), but never failure/cancelled.
-          for r in "${{ needs.lint.result }}" "${{ needs.typecheck.result }}" "${{ needs.test.result }}"; do
+          for r in "${{ needs.lint.result }}" "${{ needs.typecheck.result }}" "${{ needs.test.result }}" "${{ needs.dependency-audit.result }}"; do
             if [ "$r" != "success" ] && [ "$r" != "skipped" ]; then
               echo "Code job did not pass: $r"; exit 1
             fi
