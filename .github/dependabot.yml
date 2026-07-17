@@ -16,6 +16,12 @@ updates:
       # (numpy is pinned to 2.1.3 in pyproject.toml for exactly this reason).
       - dependency-name: "numpy"
         versions: [">=2.2"]
+      # engrava is the SUBJECT under test, not a routine dependency: its version is
+      # pinned to the exact release each published result reproduces (the [engrava]
+      # extra pins engrava==X.Y.Z). Bumping it is a deliberate benchmarking event
+      # (re-pin + re-run + emit a new result row), never a routine auto-update — so
+      # Dependabot must not propose engrava version bumps.
+      - dependency-name: "engrava"
 
   - package-ecosystem: github-actions
     directory: "/"
