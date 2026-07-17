@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "engrava-benchmark"
-version = "0.2.0"
+version = "0.2.1"
 description = "Public reproduction surface for Engrava's memory-benchmark numbers: pluggable adapters, uniform runners, machine-readable results."
 readme = "README.md"
 requires-python = ">=3.11"

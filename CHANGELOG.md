@@ -5,6 +5,13 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-07-17
+
+### Added
+
+- `--results-dir` runner flag to emit a run's result + artifact bundle into a chosen
+  directory instead of the repo `results/` tree.
+
 ## [0.2.0] - 2026-07-14
 
 ### Added
@@ -15,8 +22,6 @@ All notable changes to this project are documented here. Format follows
 - LongMemEval-V2 Engrava adapter.
 - Agent Memory Benchmark (AMB) Engrava provider under `integrations/` for running Engrava
   inside the AMB harness.
-- `--results-dir` runner flag to emit a run's result + artifact bundle into a chosen
-  directory instead of the repo `results/` tree.
 
 ### Changed
 
