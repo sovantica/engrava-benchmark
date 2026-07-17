@@ -16,6 +16,12 @@ clone it, `pip install engrava==<version>`, run a runner, reproduce a number.
 - **`runners/`** — uniform benchmark runners. The runner owns context assembly, the
   reader, the reader prompt, the judge, and the official scorer; the adapter owns only
   the memory. (LongMemEval first.)
+- **`integrations/`** — thin Engrava adapters for running inside **external** benchmark
+  harnesses (as opposed to this repo's own `runners/`): the
+  [LongMemEval-V2](integrations/longmemeval_v2/README.md) memory backend and the
+  [Agent Memory Benchmark (AMB)](integrations/amb_vectorize/README.md) provider. Each is a
+  drop-in shim copied into the upstream checkout; public `engrava` only, no LLM in the memory
+  path.
 - **`results/`** — machine-readable result JSON (one per result), validated against
   [`results/schema/results.schema.json`](results/schema/results.schema.json).
 - **`leaderboard.json`** — generated aggregate of the **verified** rows; consumed by
