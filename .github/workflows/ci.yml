@@ -82,7 +82,7 @@ jobs:
       # Cache the sentence-transformers model (all-MiniLM-L12-v2) the smoke path
       # downloads, so it isn't re-fetched on every run. First run populates it.
       - name: Cache HuggingFace models
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/huggingface
           key: hf-all-minilm-l12-v2
