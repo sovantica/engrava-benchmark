@@ -272,39 +272,6 @@ def _check_unique_result_id(row: Mapping[str, Any], *, out: Path, results_dir: P
             raise ValueError(msg)
 
 
-def write_and_validate(row: Mapping[str, Any], *, results_dir: Path = RESULTS_DIR) -> Path:
-    """Write a row to ``results/<benchmark>/<harness>/<system>/<result_id>.json``, validated.
-
-    Args:
-        row: The result row.
-        results_dir: The ``results/`` root (default: the repo ``results/``).
-
-    Returns:
-        The path written.
-
-    Raises:
-        ValueError: If the row fails schema, cross-field, or path/slug validation.
-
-    """
-    import scripts.validate_results as vr  # noqa: PLC0415 - reuse validation rules
-
-    out = result_path(row, results_dir=results_dir)
-
-    # Global result_id uniqueness, enforced BEFORE writing: emit must never create
-    # a duplicate that only CI would later catch.
-    _check_unique_result_id(row, out=out, results_dir=results_dir)
-
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(row, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-
-    errors = vr.validate_file(out, vr.build_validator(), results_dir=results_dir)
-    if errors:
-        out.unlink(missing_ok=True)
-        msg = "emitted result failed validation:\n" + "\n".join(f"  - {e}" for e in errors)
-        raise ValueError(msg)
-    return out
-
-
 def write_artifact_and_validate(
     row: Mapping[str, Any],
     artifact_bundle: Mapping[str, str],
