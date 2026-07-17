@@ -194,6 +194,21 @@ def test_main_smoke_forces_free_no_emit(tmp_path: Path, monkeypatch: pytest.Monk
     assert not results_dir.exists()
 
 
+def test_main_smoke_with_results_dir_emits(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # --results-dir opts the free smoke path in to emitting: the bundle lands in the
+    # given directory (NOT the repo results tree), so an isolated smoke run can
+    # capture its own output. Offline, no spend (mock reader/judge, neutral adapter).
+    out_dir = tmp_path / "isolated"
+    monkeypatch.setattr(runner, "build_engrava_adapter", lambda _config: _NeutralAdapter())
+
+    rc = runner.main(["--smoke", "--results-dir", str(out_dir)])
+
+    assert rc == 0
+    rows = list((out_dir / "longmemeval-s" / "longmemeval-official" / "engrava").glob("*.json"))
+    assert len(rows) == 1
+    assert rows[0].with_suffix("").is_dir()
+
+
 def test_main_byo_reader_override_recorded_in_row(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

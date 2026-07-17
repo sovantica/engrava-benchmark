@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "engrava-benchmark"
-version = "0.2.0"
+version = "0.2.1"
 description = "Public reproduction surface for Engrava's memory-benchmark numbers: pluggable adapters, uniform runners, machine-readable results."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -30,8 +30,10 @@ dependencies = [
 
 [project.optional-dependencies]
 # The Engrava adapter + runner need the public engrava package + a sqlite driver.
+# The `embeddings-local` extra pulls sentence-transformers so the `local:` embedder
+# (used by the free `run.py --smoke` docs path) works without a paid API key.
 engrava = [
-    "engrava==0.5.0",
+    "engrava[embeddings-local]==0.5.0",
     "aiosqlite>=0.20",
 ]
 # The OpenAI-direct reader + judge for a real (paid) canonical run.

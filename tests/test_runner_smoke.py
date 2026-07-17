@@ -72,7 +72,7 @@ def test_smoke_pipeline_end_to_end(tmp_path: Path) -> None:
     assert metrics["abstention"]["n"] == 1  # smoke_q2_abs is the one abstention item
 
     # The emitted file exists at its partitioned path + is schema/layout-valid
-    # (write_and_validate raises otherwise).
+    # (write_artifact_and_validate raises otherwise).
     emitted = (
         tmp_path / "longmemeval-s" / "longmemeval-official" / "engrava" / "smoke_test_row.json"
     )

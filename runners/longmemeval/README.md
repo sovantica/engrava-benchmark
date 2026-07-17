@@ -42,6 +42,14 @@ with the reader on any other endpoint lands in a *non-canonical reader segment* 
 is not the headline. The **judge** is OpenAI-direct `gpt-4o-2024-08-06` regardless
 (no broker — endpoint-faithful). Both defaults are pinned in `config/default.json`.
 
+## Embed-input cap (adapter, ingest-side)
+
+The Engrava adapter truncates each embedding payload to its **first 8192
+`cl100k_base` tokens** before embedding (the `text-embedding-3` per-input limit) —
+by-token and deterministic, so the resulting vector stays reproducible. This is an
+**ingest-side** cap on the embedding input and is **distinct** from the reader-side
+`o200k_base` history truncation performed by `official_reader.py` at read time.
+
 ## The paid full-500 run (benchmarks-owned)
 
 The cost-bearing canonical run is executed by the benchmark maintainers (they own
@@ -60,7 +68,9 @@ By default the runner uses `config/default.json`, `--models openai`, and `--emit
 It writes both the result row and the sibling reproduction-artifact directory under
 `results/<benchmark>/<harness>/<system>/`. The emitted row starts at
 `verification_status: unverified`; a maintainer promotes it to `verified` after
-review. Do not run this without the cost owner's go-ahead.
+review. Do not run this without the cost owner's go-ahead. Pass `--results-dir <dir>`
+to write the row + artifact bundle into a chosen directory instead of the canonical
+`results/` tree (also makes `--smoke` emit, which it otherwise skips).
 
 > **Run the headline with no flags.** The bare `python runners/longmemeval/run.py`
 > **is** the canonical configuration — `config/default.json` + `--models openai` +
