@@ -935,6 +935,18 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "provenance stays honest. Default: the config value."
         ),
     )
+    parser.add_argument(
+        "--results-dir",
+        type=Path,
+        default=None,
+        help=(
+            "Directory to emit the result row + sibling artifact bundle into "
+            "(default: the repo 'results/' tree). Point it elsewhere to capture a "
+            "run's output without touching the canonical results tree — e.g. an "
+            "isolated smoke run. Passing it also makes --smoke emit (it otherwise "
+            "emits nothing)."
+        ),
+    )
     return parser.parse_args(argv)
 
 
@@ -962,7 +974,10 @@ def main(argv: list[str] | None = None) -> int:
         args.models = "mock"
         args.limit = 2
         args.embedder_spec = SMOKE_EMBEDDER_SPEC
-        args.emit = False
+        # The smoke path is a free wiring check that emits nothing by default; an
+        # explicit --results-dir opts in to capturing its bundle (into an isolated tree).
+        if args.results_dir is None:
+            args.emit = False
     if args.embedder_spec:
         # Honest override: change the spec AND the embedder label written to the row.
         config["embedder_spec"] = args.embedder_spec
@@ -1019,6 +1034,7 @@ def main(argv: list[str] | None = None) -> int:
         date=date,
         partial=args.limit is not None,
         emit_result=args.emit,
+        results_dir=args.results_dir.resolve() if args.results_dir is not None else None,
     )
     print(  # noqa: T201
         f"overall_micro={metrics['overall_micro']:.4f} macro={metrics['macro']:.4f} "
