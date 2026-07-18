@@ -123,6 +123,16 @@ def _optional_int_param(params: dict[str, object], key: str) -> int | None:
     return value
 
 
+def _float_param(params: dict[str, object], key: str, default: float) -> float:
+    value = params.get(key, default)
+    require(
+        isinstance(value, (int, float)) and not isinstance(value, bool),
+        f"{key} must be a number",
+    )
+    require(value >= 0, f"{key} must be non-negative")
+    return float(value)
+
+
 def _read_api_key(api_key_env: str, api_key_file: str | None, base_url: str) -> str:
     env_value = os.getenv(api_key_env, "").strip()
     if env_value:
@@ -154,11 +164,20 @@ def _create_embedding_provider(params: dict[str, object]) -> _EmbeddingProvider:
     api_key_env = _str_param(params, "api_key_env", "OPENAI_API_KEY")
     api_key_file = _optional_str_param(params, "api_key_file")
     dimension = _optional_int_param(params, "dimension")
+    # Retry knobs (public engrava provider params). Operational-only: they change how
+    # transient rate-limit (HTTP 429) responses are ridden out, never the embedding
+    # output — a re-tried batch is byte-identical, so the result is unaffected. Bounded
+    # backoff long enough to outlast OpenAI's per-minute embedding TPM window on a low
+    # usage tier (the default 3 attempts / 1 s gives up in ~3 s, well short of ~60 s).
+    max_attempts = _int_param(params, "max_attempts", 12)
+    base_retry_delay_s = _float_param(params, "base_retry_delay_s", 5.0)
     return OpenAICompatibleProvider(
         model_name=model,
         base_url=base_url,
         api_key=_read_api_key(api_key_env, api_key_file, base_url),
         dimension=dimension,
+        max_attempts=max_attempts,
+        base_retry_delay_s=base_retry_delay_s,
     )
 
 

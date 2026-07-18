@@ -16,7 +16,11 @@ The integration is intentionally small:
 - [`engrava_memory.py`](engrava_memory.py) is a single LongMemEval-V2 memory
   backend file.
 - [`memory_config.json`](memory_config.json) is the canonical Engrava memory
-  config for the LME-V2 `small` submission path.
+  config for the LME-V2 `small` submission path. `embedding_params` also accepts two
+  **operational** retry knobs passed straight to the public engrava embedding provider —
+  `max_attempts` and `base_retry_delay_s` — bounded backoff to ride out a hosted
+  embeddings rate limit (HTTP 429) on a low usage tier. They change resilience only, never
+  the embeddings (a retried batch is byte-identical), so the result is unaffected.
 - [`SYSTEM_DESCRIPTION.md`](SYSTEM_DESCRIPTION.md) is the draft description used
   by the upstream leaderboard package builder.
 
