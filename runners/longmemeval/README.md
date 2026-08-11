@@ -90,6 +90,40 @@ If `--dataset` is omitted, the runner resolves the dataset from
 `ENGRAVA_BENCH_LONGMEMEVAL_S`, then from the ignored repo-local cache path
 `runners/longmemeval/_cache/longmemeval_s_cleaned.json`.
 
+## Run modes (`--mode`)
+
+`--mode` is one dial for the question "what is real in this run, and may it publish?". It sets the
+embedder, the reader/judge backend and the emission default together, so the four combinations
+that make sense are named instead of assembled by hand from five flags.
+
+| Mode | Embedder | Reader / judge | Cost | Emits a result row | Emits a retrieval log |
+|---|---|---|---|---|---|
+| `smoke` | local | mock | free | no | no |
+| `plumbing` | local | mock | free | no | no |
+| `retrieval` | real | mock (answer discarded) | embeddings only | no | yes |
+| `score` | real | real | reader + judge | yes | no |
+
+**Only `score` may write a result row.** The other three are non-official by construction: passing
+`--emit` to them prints a notice and is ignored, because a row emitted from a mocked reader would
+carry the config's canonical labels over output that no reader produced. `smoke` and `plumbing`
+resolve identically here; `smoke` additionally runs against the tiny in-repo fixture, so it is the
+fast wiring check and `plumbing` is the same pipeline over the real dataset.
+
+`retrieval` exists for comparing two builds without paying a reader: it retrieves for real, throws
+the reader's answer away, judges nothing, and writes a ranked retrieval log. Two such logs are
+compared with:
+
+```bash
+python runners/retrieval_diff.py --candidate <run>/retrieval_log.json --baseline <ref>/retrieval_log.json
+```
+
+which reports how many questions kept identical rankings, reordered them, swapped an item at the
+top-k boundary, or genuinely changed which items were retrieved.
+
+**Omitting `--mode` changes nothing.** The bare command remains the canonical configuration; the
+modes are a convenience over the existing flags, and any flag you set explicitly still wins over
+the mode's default.
+
 ## Free local smoke (NO spend, NO paid API)
 
 Exercises the full pipeline end-to-end offline — real Engrava retrieval with the
