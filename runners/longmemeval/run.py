@@ -37,6 +37,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
 from adapters.base import CorpusTurn, RunContext
+from runners import _modes, retrieval_diff
+from runners._modes import EmbedderKind, ModelKind, ModeSpec, RunMode
 from runners.longmemeval import official_reader
 
 if TYPE_CHECKING:
@@ -50,6 +52,12 @@ DEFAULT_DATASET_ENV = "ENGRAVA_BENCH_LONGMEMEVAL_S"
 DEFAULT_DATASET_PATH = HERE / "_cache" / "longmemeval_s_cleaned.json"
 SMOKE_DATASET = REPO_ROOT / "tests" / "fixtures" / "longmemeval_smoke.json"
 SMOKE_EMBEDDER_SPEC = "local:all-MiniLM-L12-v2"
+# The deterministic, offline embedder used by the local-embedder modes (smoke +
+# plumbing). Reuses the smoke spec so all $0/offline modes share one embedder.
+LOCAL_EMBEDDER_SPEC = SMOKE_EMBEDDER_SPEC
+# Where `--mode retrieval` writes its retrieval log when no --results-dir is given.
+# Kept OUTSIDE the canonical results/ tree so it never trips result validation.
+DEFAULT_RETRIEVAL_DIR = REPO_ROOT / "retrieval-runs"
 
 
 # --------------------------------------------------------------------------- #
@@ -666,6 +674,31 @@ def build_reader_judge(config: Mapping[str, Any], *, models: str) -> tuple[Reade
     raise ValueError(msg)
 
 
+def resolve_judge(judge: Judge, mode: ModeSpec | None) -> Judge:
+    """Return the judge the resolved mode actually depends on.
+
+    A mode that judges nothing (:attr:`ModeSpec.runs_judge` is ``False`` — today
+    only ``retrieval``, whose reader answer is discarded) is wired to
+    :class:`~runners.longmemeval.mock_models.NullJudge`, so the run neither pays
+    for nor depends on a verdict it throws away. Every other mode — and the
+    historical no-``--mode`` path — keeps the judge it was built with, so the
+    canonical paid run is untouched.
+
+    Args:
+        judge: The judge built from config for the selected backend.
+        mode: The resolved run-mode spec, or ``None`` when ``--mode`` was omitted.
+
+    Returns:
+        The judge to run the pipeline with.
+
+    """
+    if mode is None or mode.runs_judge:
+        return judge
+    from runners.longmemeval.mock_models import NullJudge  # noqa: PLC0415
+
+    return NullJudge()
+
+
 def build_engrava_adapter(config: Mapping[str, Any]) -> MemoryAdapter:
     """Build the public-engrava adapter from config (requires ``engrava``).
 
@@ -697,6 +730,7 @@ def run_and_emit(
     partial: bool,
     emit_result: bool,
     results_dir: Path | None = None,
+    retrieval_log_path: Path | None = None,
 ) -> dict[str, Any]:
     """Run the pipeline, aggregate official metrics, optionally emit + validate.
 
@@ -711,6 +745,10 @@ def run_and_emit(
         partial: Whether this is a head-sliced (non-headline) run.
         emit_result: If ``True``, write + validate ``results/<result_id>.json``.
         results_dir: Optional override for the results directory (tests).
+        retrieval_log_path: If given, write the run's ranked retrieval log
+            (``{question_id: ranked_official_ids}``) as JSON to this path. Used by
+            ``--mode retrieval`` for a deterministic retrieval-diff; never part of
+            an official row.
 
     Returns:
         The computed ``metrics`` object.
@@ -736,6 +774,16 @@ def run_and_emit(
         close = getattr(adapter, "close", None)
         if callable(close):
             close()
+
+    if retrieval_log_path is not None:
+        # The ranked official ids per question -- the deterministic retrieval
+        # identity a retrieval-diff compares. Non-official by construction.
+        log = {r.question_id: r.ranked_official_ids for r in records}
+        retrieval_log_path.parent.mkdir(parents=True, exist_ok=True)
+        retrieval_log_path.write_text(
+            json.dumps(log, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        print(f"Wrote retrieval log: {retrieval_log_path} ({len(log)} questions)")  # noqa: T201
 
     # The reproduction artifact is part of every emitted result: the row records the
     # checksum, and emission writes the bundle beside the row under results/.
@@ -837,10 +885,12 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--models",
         choices=["openai", "ollama", "mock"],
-        default="openai",
+        default=None,
         help=(
             "Reader/judge backend: 'openai' (canonical, paid), 'ollama' (a local "
-            "OpenAI-compatible server, free), or 'mock' (free offline smoke)."
+            "OpenAI-compatible server, free), or 'mock' (free offline smoke). "
+            "Default: 'openai' (unchanged) unless --mode sets it; an explicit value "
+            "always wins over the --mode default."
         ),
     )
     parser.add_argument(
@@ -912,10 +962,11 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--emit",
         action=argparse.BooleanOptionalAction,
-        default=True,
+        default=None,
         help=(
             "Write + validate the result row and sibling artifact bundle after the "
-            "run (default: true; use --no-emit for exploratory runs)."
+            "run (default: true, unless --mode/--smoke turns it off; use --no-emit "
+            "for exploratory runs). An explicit --emit/--no-emit always wins."
         ),
     )
     parser.add_argument(
@@ -947,7 +998,83 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "emits nothing)."
         ),
     )
+    # The shared, benchmark-agnostic run-mode surface (--mode, --baseline).
+    _modes.add_mode_arguments(parser)
     return parser.parse_args(argv)
+
+
+def _refuse_emission(args: argparse.Namespace, mode: RunMode) -> None:
+    """Force a non-official mode to emit nothing, and say so when it was asked to.
+
+    A non-official mode can NEVER write a canonical result row, even if the user passed
+    ``--emit``: its reader or judge is mocked, so an emitted row would carry the config's
+    canonical labels over mock outputs. Only ``score`` — or the historical no-mode path —
+    may emit. ``--emit`` is still honoured for a mode's retrieval log.
+
+    Args:
+        args: The parsed CLI namespace (mutated in place).
+        mode: The non-official mode that was selected.
+
+    """
+    if args.emit:
+        print(  # noqa: T201
+            f"--emit ignored: mode '{mode}' is not official and cannot write a result row"
+        )
+    args.emit = False
+
+
+def _apply_run_mode(args: argparse.Namespace) -> ModeSpec | None:
+    """Resolve ``--mode`` into concrete defaults, without overriding explicit flags.
+
+    ``--mode`` is a convenience dial: it fills the reader/judge backend, embedder,
+    and emit defaults for the selected mode, but any flag the user set explicitly
+    still wins (explicit flags carry a non-``None`` value; the mode only fills the
+    ``None`` sentinels). Omitting ``--mode`` reproduces the historical behaviour
+    exactly: ``--models`` defaults to ``openai`` and ``--emit`` to ``True``.
+
+    ``--mode smoke`` maps onto the existing ``--smoke`` fast path (its dedicated
+    block in :func:`main` sets the fixture dataset, mock models, ``limit=2``, the
+    local embedder, and no emission), so the two are equivalent.
+
+    Args:
+        args: The parsed CLI namespace (mutated in place).
+
+    Returns:
+        The resolved :class:`ModeSpec`, or ``None`` when ``--mode`` was omitted.
+
+    """
+    if args.mode is None:
+        # No mode: preserve today's exact defaults for the sentinel flags.
+        if args.models is None:
+            args.models = "openai"
+        if args.emit is None:
+            args.emit = True
+        return None
+
+    mode = RunMode(args.mode)
+    spec = _modes.resolve_mode(mode)
+    if mode is RunMode.SMOKE:
+        # Delegate to the existing --smoke fast path; it sets every specific EXCEPT
+        # emission. That path deliberately captures a bundle when --results-dir is
+        # given, and returning here would carry the exception into the mode surface:
+        # the sentinel further down would then resolve `emit` to True and hand a
+        # two-question mock run to the emission path, contradicting the guarantee
+        # below. The legacy `--smoke` flag keeps its own behaviour; `--mode smoke`
+        # is bound by the non-official rule like every other non-official mode.
+        args.smoke = True
+        _refuse_emission(args, mode)
+        return spec
+
+    if args.models is None:
+        args.models = "openai" if spec.reader_judge is ModelKind.REAL else "mock"
+    if args.embedder_spec is None and spec.embedder is EmbedderKind.LOCAL:
+        args.embedder_spec = LOCAL_EMBEDDER_SPEC
+    if spec.emits_official_row:
+        if args.emit is None:
+            args.emit = True
+    else:
+        _refuse_emission(args, mode)
+    return spec
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -969,6 +1096,16 @@ def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
     _suppress_known_dependency_warnings()
     config = load_config(args.config)
+    # Resolve the shared --mode dial into concrete defaults (never overriding an
+    # explicit flag). Omitting --mode leaves today's behaviour byte-for-byte.
+    resolved_mode = _apply_run_mode(args)
+    if resolved_mode is not None:
+        print(  # noqa: T201
+            f"Resolved --mode {resolved_mode.mode}: embedder={resolved_mode.embedder} "
+            f"reader/judge={resolved_mode.reader_judge} "
+            f"official_row={resolved_mode.emits_official_row} "
+            f"retrieval_log={resolved_mode.emits_retrieval_log}"
+        )
     if args.smoke:
         args.dataset = SMOKE_DATASET
         args.models = "mock"
@@ -978,6 +1115,10 @@ def main(argv: list[str] | None = None) -> int:
         # explicit --results-dir opts in to capturing its bundle (into an isolated tree).
         if args.results_dir is None:
             args.emit = False
+    # Final sentinel fill: anything still unresolved (e.g. smoke with --results-dir)
+    # emits by default, matching the historical --emit default of True.
+    if args.emit is None:
+        args.emit = True
     if args.embedder_spec:
         # Honest override: change the spec AND the embedder label written to the row.
         config["embedder_spec"] = args.embedder_spec
@@ -1022,7 +1163,17 @@ def main(argv: list[str] | None = None) -> int:
     date = args.date or datetime.now(tz=UTC).strftime("%Y-%m-%d")
     result_id = args.result_id or _default_result_id(date)
     reader, judge = build_reader_judge(config, models=args.models)
+    # A mode that judges nothing (retrieval) runs a no-op judge instead.
+    judge = resolve_judge(judge, resolved_mode)
     adapter = build_engrava_adapter(config)
+
+    # In retrieval mode, write the ranked retrieval log so it can be diffed / reused
+    # as a baseline. Reuses --results-dir as the output location; falls back to a
+    # dir OUTSIDE results/ so it never trips result validation.
+    retrieval_log_path: Path | None = None
+    if resolved_mode is not None and resolved_mode.emits_retrieval_log:
+        out_dir = args.results_dir if args.results_dir is not None else DEFAULT_RETRIEVAL_DIR
+        retrieval_log_path = out_dir.resolve() / retrieval_diff.RETRIEVAL_LOG_FILENAME
 
     metrics = run_and_emit(
         config=config,
@@ -1035,12 +1186,59 @@ def main(argv: list[str] | None = None) -> int:
         partial=args.limit is not None,
         emit_result=args.emit,
         results_dir=args.results_dir.resolve() if args.results_dir is not None else None,
+        retrieval_log_path=retrieval_log_path,
     )
+    _report_metrics(metrics, resolved_mode)
+
+    if retrieval_log_path is not None and args.baseline is not None:
+        return _report_retrieval_diff(retrieval_log_path, args.baseline)
+    return 0
+
+
+def _report_metrics(metrics: Mapping[str, Any], mode: ModeSpec | None) -> None:
+    """Print the run's headline metrics, or say why there are none.
+
+    A mode that judges nothing (``retrieval``) aggregates no correctness signal at
+    all, so its metrics would read as a 0.0 score; that case reports what the run
+    actually produced instead.
+
+    Args:
+        metrics: The aggregated metrics object.
+        mode: The resolved run-mode spec, or ``None`` when ``--mode`` was omitted.
+
+    """
+    if mode is not None and not mode.runs_judge:
+        print(  # noqa: T201
+            f"No correctness reported: mode '{mode.mode}' judges nothing "
+            "(its reader answer is discarded); the retrieval log is the output."
+        )
+        return
     print(  # noqa: T201
         f"overall_micro={metrics['overall_micro']:.4f} macro={metrics['macro']:.4f} "
         f"abstention={metrics['abstention']['accuracy']:.4f} (n={metrics['abstention']['n']})"
     )
-    return 0
+
+
+def _report_retrieval_diff(candidate_path: Path, baseline: Path) -> int:
+    """Diff the just-written retrieval log against a baseline and print the verdict.
+
+    Args:
+        candidate_path: The retrieval log this run wrote.
+        baseline: The baseline retrieval log (file or directory) to diff against.
+
+    Returns:
+        ``1`` if the verdict is RED (a material retrieval change), else ``0``.
+
+    """
+    candidate = retrieval_diff.load_retrieval_log(candidate_path)
+    base = retrieval_diff.load_retrieval_log(baseline)
+    result = retrieval_diff.diff_retrieval_logs(candidate, base)
+    print(  # noqa: T201
+        f"retrieval-diff verdict: {result.verdict} "
+        f"(changed_fraction={result.changed_fraction:.4f}, "
+        f"compared={result.questions_compared})"
+    )
+    return 1 if result.verdict is retrieval_diff.Verdict.RED else 0
 
 
 if __name__ == "__main__":

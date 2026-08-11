@@ -4,8 +4,8 @@ Compares the ranked list of official corpus ids retrieved per question between a
 candidate run and a stored baseline. Because engrava is a deterministic memory
 layer, identical ids in identical order => a byte-identical reader prompt => any
 downstream score change on that question is provably reader/judge jitter, not a
-retrieval effect. This is the engrava-benchmark analogue of the LongMemEval-S
-pre-publish screen (DEC-063): the free way to verify an engrava code change.
+retrieval effect. This is the free way to verify that an engrava code
+change left retrieval alone, before spending anything on a reader.
 
 The retrieval identity here is the runner's ``RunRecord.ranked_official_ids`` -- a
 plain list of official corpus id strings, best first -- so a retrieval log is a

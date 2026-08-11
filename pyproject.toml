@@ -63,6 +63,7 @@ packages = [
     "runners",
     "runners.longmemeval",
     "runners.longmemeval.official_scorer",
+    "runners.longmemeval_v2",
     "scripts",
 ]
 

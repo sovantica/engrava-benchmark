@@ -18,9 +18,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from adapters.base import CorpusTurn, RankedItem, RunContext
 from runners.longmemeval import run as runner
-from runners.longmemeval.mock_models import MockJudge, MockReader
+from runners.longmemeval.mock_models import MockJudge, MockReader, NullJudge
 from runners.longmemeval.official_scorer.evaluate_qa import get_anscheck_prompt
 from runners.longmemeval.scorer import OFFICIAL_CATEGORIES, OfficialScorer, is_abstention
 
@@ -129,8 +131,58 @@ def test_mock_judge_handles_missing_gold() -> None:
     assert judge.score("q", "Porto", "I live in Porto", question_type="t", question_id="i")
 
 
+def test_mock_judge_handles_numeric_gold() -> None:
+    # LongMemEval gold answers are legitimately numeric for counting/duration
+    # questions, so the offline judge must compare them as text, not crash.
+    judge = MockJudge()
+    assert judge.score("q", 12, "I ran 12 kilometres", question_type="t", question_id="i") is True
+    assert judge.score("q", 12, "I ran 40 kilometres", question_type="t", question_id="i") is False
+    assert judge.score("q", 3.5, "about 3.5 hours", question_type="t", question_id="i") is True
+
+
+def test_null_judge_reports_no_correctness_without_touching_gold() -> None:
+    # The judge a non-judging mode wires in: never inspects gold, never crashes.
+    assert NullJudge().score("q", 12, "anything", question_type="t", question_id="i") is False
+    assert NullJudge().score("q", "Porto", "Porto", question_type="t", question_id="i") is False
+
+
 def test_scorer_empty_judgments() -> None:
     metrics = OfficialScorer(scorer_version="x").aggregate([])
     assert metrics["overall_micro"] == 0.0
     assert metrics["abstention"] == {"accuracy": 0.0, "n": 0}
     assert all(c["n"] == 0 for c in metrics["per_category"].values())
+
+
+@pytest.mark.parametrize(
+    ("gold", "answer"),
+    [
+        (3, "the answer is 13 items"),
+        (3, "0.3 percent"),
+        (2, "in 2024"),
+        (5, "the 15 sessions"),
+    ],
+    ids=["prefixed", "decimal", "inside-a-year", "suffixed"],
+)
+def test_numeric_gold_does_not_match_a_larger_number(gold: int, answer: str) -> None:
+    """A numeric gold must not be satisfied by a number that merely contains its digits.
+
+    Accepting numeric golds is what made the offline gate runnable at all, but a plain substring
+    rule turns a crash into a silent wrong answer: ``3`` would be found in ``13``, ``0.3`` and
+    ``2024``. On this dataset that touches the counting and duration questions, i.e. exactly the
+    ones a numeric gold exists for.
+    """
+    judge = MockJudge()
+
+    assert not judge.score("q", gold, answer, question_type="t", question_id="i")
+
+
+@pytest.mark.parametrize(
+    ("gold", "answer"),
+    [(3, "there were 3 of them"), (3, "3"), (12, "12 sessions"), (0, "0 matches")],
+    ids=["in-a-sentence", "bare", "with-a-noun", "zero"],
+)
+def test_numeric_gold_still_matches_the_number_itself(gold: int, answer: str) -> None:
+    """The stricter rule must not reject the answers it was written to accept."""
+    judge = MockJudge()
+
+    assert judge.score("q", gold, answer, question_type="t", question_id="i")
