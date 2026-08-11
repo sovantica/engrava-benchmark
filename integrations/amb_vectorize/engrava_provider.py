@@ -82,6 +82,7 @@ class _EmbeddingProvider(Protocol):
     """Minimal async embedding-provider contract used by the provider."""
 
     model_name: str
+    dimension: int
 
     async def embed(self, text: str) -> list[float]:
         """Embed a single query string.
@@ -128,6 +129,20 @@ class _DeterministicEmbeddingProvider:
             msg = "deterministic embedding dimension must be positive"
             raise ValueError(msg)
         self._dimension = dimension
+
+    @property
+    def dimension(self) -> int:
+        """Return the embedding dimensionality.
+
+        Required as a PUBLIC member by ``EmbeddingProviderProtocol``. The protocol is
+        structural, so a store accepts a provider without it and only fails when the
+        retrieval path reads it.
+
+        Returns:
+            The vector dimension this provider emits.
+
+        """
+        return self._dimension
 
     def _vector(self, text: str) -> list[float]:
         digest = hashlib.sha256(text.encode("utf-8")).digest()

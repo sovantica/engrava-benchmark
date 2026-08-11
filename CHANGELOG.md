@@ -5,6 +5,23 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-11
+
+### Added
+
+- `--mode` on the runners: one dial for which of the embedder, reader and judge are real, whether the run may write a result row, and whether it emits a ranked retrieval log.
+- A LongMemEval-V2 runner that drives the upstream harness and can emit a retrieval log for a deterministic diff.
+- `runners/retrieval_diff.py` to compare two retrieval logs, so a memory change can be screened without paying for a reader.
+- Documentation for the run modes and for the LongMemEval-V2 runner.
+
+### Changed
+
+- Track the engrava 0.6.0 line; the packaged extra and the documented install now name the same version.
+
+### Fixed
+
+- Bug fixes and stability improvements.
+
 ## [0.2.1] - 2026-07-17
 
 ### Added

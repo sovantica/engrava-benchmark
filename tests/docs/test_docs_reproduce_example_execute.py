@@ -463,3 +463,22 @@ def _tree_snapshot() -> dict[str, str]:
             rel = path.relative_to(REPO_ROOT).as_posix()
             snapshot[rel] = hashlib.sha256(path.read_bytes()).hexdigest()
     return snapshot
+
+
+def test_the_readme_pin_matches_the_packaged_dependency() -> None:
+    """The two engrava pins are the same version.
+
+    The repository states the engrava line twice — once as the ``engrava`` extra in
+    ``pyproject.toml`` and once in the README recipe a reader follows — and nothing kept them in
+    step. That is how the previous drift happened: the packaged range stayed behind while a new
+    engrava line shipped, and the mismatch surfaced only when someone tried to install.
+    """
+    pyproject = (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    packaged = re.search(r"engrava\[[^\]]*\]==([0-9][0-9A-Za-z.\-]*)", pyproject)
+
+    assert packaged is not None, "pyproject.toml declares no pinned engrava extra"
+    assert packaged.group(1) == _pinned_engrava_version(), (
+        f"README pins engrava=={_pinned_engrava_version()} while pyproject.toml pins "
+        f"engrava=={packaged.group(1)}; a reader following the recipe would install a different "
+        "engrava than the one this repository packages"
+    )

@@ -1,7 +1,7 @@
 # LongMemEval-V2 Integration
 
 This directory contains the public integration artifact for evaluating
-`engrava==0.5.0` as a LongMemEval-V2 memory backend.
+`engrava==0.6.0` as a LongMemEval-V2 memory backend.
 
 The upstream benchmark repository is:
 
@@ -41,7 +41,7 @@ Inside a LongMemEval-V2 checkout:
 
 ```bash
 pip install -e .
-pip install "engrava==0.5.0" aiosqlite tiktoken
+pip install "engrava==0.6.0" aiosqlite tiktoken
 ```
 
 For the official LME-V2 stack, provide OpenAI-compatible reader and embedding

@@ -1,7 +1,7 @@
 # Agent Memory Benchmark (AMB) Integration
 
 This directory contains the public integration artifact for evaluating
-`engrava==0.5.0` as an Agent Memory Benchmark memory provider.
+`engrava==0.6.0` as an Agent Memory Benchmark memory provider.
 
 The upstream benchmark repository is:
 
@@ -39,7 +39,7 @@ models are part of the comparability contract.
 Inside an AMB checkout:
 
 ```bash
-uv pip install "engrava==0.5.0" aiosqlite tiktoken
+uv pip install "engrava==0.6.0" aiosqlite tiktoken
 ```
 
 The default embedding backend is a network-free local SentenceTransformer, so the

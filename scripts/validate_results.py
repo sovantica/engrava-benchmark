@@ -279,8 +279,10 @@ def _layout_errors(path: Path, row: dict[str, Any], results_dir: Path) -> list[s
     expected_depth = 4  # <benchmark>/<harness>/<system>/<file>.json
     if len(parts) != expected_depth:
         return [
-            f"result must live at results/<benchmark>/<harness>/<system>/<result_id>.json; "
-            f"found depth {len(parts)} at {rel.as_posix()!r}"
+            (
+                f"result must live at results/<benchmark>/<harness>/<system>/<result_id>.json; "
+                f"found depth {len(parts)} at {rel.as_posix()!r}"
+            )
         ]
 
     *axis_segments, filename = parts
@@ -470,10 +472,12 @@ def _stray_file_errors(results_dir: Path) -> dict[Path, list[str]]:
         if depth == _BUNDLE_FILE_DEPTH and _is_bundle_json(path):
             continue  # a legitimate artifact-bundle component
         errors[path.resolve()] = [
-            f"result-like JSON at a forbidden location "
-            f"{path.relative_to(results_dir).as_posix()!r}: a result row must live at "
-            f"results/<benchmark>/<harness>/<system>/<result_id>.json (depth "
-            f"{_RESULT_ROW_DEPTH})"
+            (
+                f"result-like JSON at a forbidden location "
+                f"{path.relative_to(results_dir).as_posix()!r}: a result row must live at "
+                f"results/<benchmark>/<harness>/<system>/<result_id>.json (depth "
+                f"{_RESULT_ROW_DEPTH})"
+            )
         ]
     return errors
 

@@ -53,7 +53,7 @@ if "memory_modules" not in sys.modules:
     sys.modules["memory_modules"] = _mm
     sys.modules["memory_modules.memory"] = _mm_memory
 
-from integrations.longmemeval_v2.engrava_memory import EngravaMemory  # noqa: E402
+from integrations.longmemeval_v2.engrava_memory import EngravaMemory
 
 
 def _memory_params() -> dict[str, object]:
@@ -115,7 +115,7 @@ def test_query_with_no_matching_memory_returns_empty(memory: EngravaMemory) -> N
 
 def test_insert_requires_states(memory: EngravaMemory) -> None:
     """A trajectory with no states/content rows is rejected by the upstream contract."""
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="states"):
         memory.insert({"id": "empty", "goal": "g", "states": []})
 
 

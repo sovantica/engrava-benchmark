@@ -48,9 +48,15 @@ _T = TypeVar("_T")
 
 
 class _EmbeddingProvider(Protocol):
-    """Minimal async embedding provider contract used by the adapter."""
+    """The embedding provider contract this adapter passes to engrava.
+
+    Mirrors the members ``EmbeddingProviderProtocol`` requires. Declaring fewer than engrava
+    reads is how a provider becomes non-conformant while every local type check still passes:
+    the omission is accepted here and only surfaces inside a retrieval call.
+    """
 
     model_name: str
+    dimension: int
 
     async def embed(self, text: str) -> list[float]:
         """Embed one text string."""
@@ -67,6 +73,11 @@ class _DeterministicEmbeddingProvider:
     def __init__(self, dimension: int = 16) -> None:
         require(dimension > 0, "deterministic embedding dimension must be positive")
         self._dimension = dimension
+
+    @property
+    def dimension(self) -> int:
+        """Return the embedding dimensionality (a required public protocol member)."""
+        return self._dimension
 
     def _vector(self, text: str) -> list[float]:
         digest = hashlib.sha256(text.encode("utf-8")).digest()

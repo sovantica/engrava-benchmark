@@ -133,6 +133,11 @@ class _LoopBoundAsyncProvider:
         self._dim = dim
         self._bound_loop: asyncio.AbstractEventLoop | None = None
 
+    @property
+    def dimension(self) -> int:
+        """Return the embedding dimensionality (a required public protocol member)."""
+        return self._dim
+
     def _check_loop(self) -> None:
         loop = asyncio.get_running_loop()
         if self._bound_loop is None:

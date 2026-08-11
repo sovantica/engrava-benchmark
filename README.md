@@ -15,7 +15,10 @@ clone it, `pip install engrava==<version>`, run a runner, reproduce a number.
   ([guide](adapters/README.md)).
 - **`runners/`** — uniform benchmark runners. The runner owns context assembly, the
   reader, the reader prompt, the judge, and the official scorer; the adapter owns only
-  the memory. (LongMemEval first.)
+  the memory. [LongMemEval-S](runners/longmemeval/README.md) is the canonical one;
+  [LongMemEval-V2](runners/longmemeval_v2/README.md) drives that benchmark's upstream
+  harness. Both take `--mode`, one dial for what is real in a run and whether it may
+  publish — see [run modes](runners/longmemeval/README.md#run-modes---mode).
 - **`integrations/`** — thin Engrava adapters for running inside **external** benchmark
   harnesses (as opposed to this repo's own `runners/`): the
   [LongMemEval-V2](integrations/longmemeval_v2/README.md) memory backend and the
@@ -38,7 +41,7 @@ cd engrava-benchmark
 # 2. set up + pin the engrava version named by the result you want to reproduce
 python -m venv .venv && source .venv/bin/activate
 make install
-pip install "engrava==0.5.0"   # <- the engrava_version from the result row
+pip install "engrava==0.6.0"   # <- must equal the engrava_version in the result row
 
 # 3. point the runner at the dataset this result pins: the CLEANED LongMemEval-S split
 #    from Hugging Face `xiaowu0162/longmemeval-cleaned` (file: longmemeval_s_cleaned.json),
@@ -55,6 +58,11 @@ python runners/longmemeval/run.py
 make validate
 make leaderboard
 ```
+
+> **Reproducing an older result.** The pin above tracks the engrava line this repository
+> currently installs. A result row records the exact `engrava_version` it was produced with, and
+> that is the version to install when reproducing it — a different one is a different system and
+> is not expected to return the same number.
 
 > **Run it with no flags — strongly recommended.** The bare
 > `python runners/longmemeval/run.py` is the canonical configuration used for every
