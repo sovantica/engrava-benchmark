@@ -72,6 +72,11 @@ class _FakeEmbedder:
     model_name = "fake-16"
     _dim = 16
 
+    @property
+    def dimension(self) -> int:
+        """Return the embedding dimensionality (a required public protocol member)."""
+        return self._dim
+
     def _vector(self, text: str) -> list[float]:
         digest = hashlib.sha256(text.encode("utf-8")).digest()
         return [(float(digest[i % len(digest)]) / 127.5) - 1.0 for i in range(self._dim)]

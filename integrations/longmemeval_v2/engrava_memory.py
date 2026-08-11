@@ -68,6 +68,11 @@ class _DeterministicEmbeddingProvider:
         require(dimension > 0, "deterministic embedding dimension must be positive")
         self._dimension = dimension
 
+    @property
+    def dimension(self) -> int:
+        """Return the embedding dimensionality (a required public protocol member)."""
+        return self._dimension
+
     def _vector(self, text: str) -> list[float]:
         digest = hashlib.sha256(text.encode("utf-8")).digest()
         values = []

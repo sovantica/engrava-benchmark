@@ -1,0 +1,2 @@
+{"question_id": "web_q1", "memory_context": [{"value": "User said X.\nTrajectory ID: traj_a\nState index: 3\nmore"}, {"value": "assistant reply.\nTrajectory ID: traj_b\nState index: 0\n"}]}
+{"question_id": "web_q2", "memory_context": [{"value": "no structured headers in this item"}, {"value": "context.\nTrajectory ID: traj_c\nState index: 1\n"}]}

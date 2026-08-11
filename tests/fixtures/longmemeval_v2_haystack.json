@@ -1,0 +1,5 @@
+{
+  "web_q1": ["traj_a", "traj_b"],
+  "web_q2": ["traj_a", "traj_c"],
+  "web_q3": ["traj_d"]
+}

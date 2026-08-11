@@ -1,0 +1,32 @@
+[
+  {
+    "question_id": "numeric_q1",
+    "question_type": "temporal-reasoning",
+    "question": "How many kilometres did the user run last week?",
+    "answer": 12,
+    "question_date": "2026-01-10",
+    "haystack_dates": ["2026-01-05"],
+    "haystack_session_ids": ["s1"],
+    "haystack_sessions": [
+      [
+        {"role": "user", "content": "I ran 12 kilometres last week.", "has_answer": true},
+        {"role": "assistant", "content": "That is a solid week of running."}
+      ]
+    ]
+  },
+  {
+    "question_id": "numeric_q2",
+    "question_type": "single-session-user",
+    "question": "What city did the user move to?",
+    "answer": "Lisbon",
+    "question_date": "2026-02-01",
+    "haystack_dates": ["2026-01-20"],
+    "haystack_session_ids": ["s2"],
+    "haystack_sessions": [
+      [
+        {"role": "user", "content": "I moved to Lisbon in January.", "has_answer": true},
+        {"role": "assistant", "content": "Lisbon is a great city."}
+      ]
+    ]
+  }
+]
