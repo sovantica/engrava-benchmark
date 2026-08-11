@@ -97,7 +97,15 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
-addopts = "--cov --cov-report=term-missing --cov-fail-under=90"
+addopts = "--cov --cov-report=term-missing --cov-fail-under=90 --strict-markers"
+# A test's level is what it touches, not how long it takes. Unmarked = unit: in-process,
+# any I/O confined to tmp_path. `--strict-markers` makes a typo an error rather than a
+# silently unselected test.
+markers = [
+    "integration: touches real local resources (an on-disk database, a subprocess of this project's own CLI)",
+    "external: touches the network, a third-party API or a package index; never in the default selection",
+    "slow: over 5 seconds of wall clock; orthogonal to level",
+]
 
 [tool.coverage.run]
 branch = true
