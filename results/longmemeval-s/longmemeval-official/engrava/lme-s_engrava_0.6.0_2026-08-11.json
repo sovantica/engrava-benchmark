@@ -1,0 +1,88 @@
+{
+  "schema_version": "1.0",
+  "result_id": "lme-s_engrava_0.6.0_2026-08-11",
+  "system": "Engrava",
+  "system_version": "0.6.0",
+  "tier": "engrava",
+  "provenance": "sovantica-run",
+  "verification_status": "unverified",
+  "benchmark": "longmemeval",
+  "benchmark_version": "v1",
+  "dataset_revision": "longmemeval_s_cleaned@sha256:d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442",
+  "split": "s_full_500",
+  "partial": false,
+  "date": "2026-08-11",
+  "engrava_version": "0.6.0",
+  "engrava_dist_hash": "sha256:c84043458fa54ada3ac9667a8e712b5c5f7c46c64f1c1a3560b62ee87efbf1d7",
+  "runner_commit": "engrava-benchmark@a45dde9",
+  "harness": {
+    "name": "longmemeval-official",
+    "source": "in-repo",
+    "version": "engrava-benchmark@a45dde9"
+  },
+  "system_config": {
+    "adapter": "engrava_adapter",
+    "embedder": "text-embedding-3-small",
+    "embedder_endpoint": "api.openai.com",
+    "memory_pipeline_llms": [],
+    "params": {
+      "embedder_spec": "openai:text-embedding-3-small"
+    }
+  },
+  "group": "A",
+  "reader_model": "gpt-4o",
+  "reader_snapshot": "gpt-4o-2024-08-06",
+  "reader_endpoint": "api.openai.com",
+  "reader_sampling": {
+    "temperature": 0.0
+  },
+  "judge_model": "gpt-4o",
+  "judge_snapshot": "gpt-4o-2024-08-06",
+  "judge_endpoint": "api.openai.com",
+  "scorer_version": "longmemeval@9e0b455f4ef0e2ab8f2e582289761153549043fc",
+  "reader_version": "longmemeval@9e0b455f4ef0e2ab8f2e582289761153549043fc",
+  "retriever": "search_hybrid",
+  "granularity": "turn",
+  "top_k": 20,
+  "ingestion_regime": "one-thought-per-user-turn",
+  "metrics": {
+    "overall_micro": 0.816,
+    "macro": 0.8175792044213096,
+    "abstention": {
+      "accuracy": 0.7666666666666667,
+      "n": 30
+    },
+    "per_category": {
+      "single-session-user": {
+        "accuracy": 0.9714285714285714,
+        "n": 70
+      },
+      "single-session-assistant": {
+        "accuracy": 0.8571428571428571,
+        "n": 56
+      },
+      "single-session-preference": {
+        "accuracy": 0.7,
+        "n": 30
+      },
+      "knowledge-update": {
+        "accuracy": 0.8205128205128205,
+        "n": 78
+      },
+      "temporal-reasoning": {
+        "accuracy": 0.8195488721804511,
+        "n": 133
+      },
+      "multi-session": {
+        "accuracy": 0.7368421052631579,
+        "n": 133
+      }
+    }
+  },
+  "n": 500,
+  "reproduction_artifact_url": "results/longmemeval-s/longmemeval-official/engrava/lme-s_engrava_0.6.0_2026-08-11/",
+  "artifact_checksum": "sha256:8ccd138dfb8b773412e27afd401e91659d8e399fc67e0af5e32ec4e73ed9f0fc",
+  "artifact_license": "MIT",
+  "citation": null,
+  "notes": ""
+}
