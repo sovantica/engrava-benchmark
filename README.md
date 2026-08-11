@@ -15,7 +15,10 @@ clone it, `pip install engrava==<version>`, run a runner, reproduce a number.
   ([guide](adapters/README.md)).
 - **`runners/`** — uniform benchmark runners. The runner owns context assembly, the
   reader, the reader prompt, the judge, and the official scorer; the adapter owns only
-  the memory. (LongMemEval first.)
+  the memory. [LongMemEval-S](runners/longmemeval/README.md) is the canonical one;
+  [LongMemEval-V2](runners/longmemeval_v2/README.md) drives that benchmark's upstream
+  harness. Both take `--mode`, one dial for what is real in a run and whether it may
+  publish — see [run modes](runners/longmemeval/README.md#run-modes---mode).
 - **`integrations/`** — thin Engrava adapters for running inside **external** benchmark
   harnesses (as opposed to this repo's own `runners/`): the
   [LongMemEval-V2](integrations/longmemeval_v2/README.md) memory backend and the

@@ -22,7 +22,13 @@ equal-footing contract.
   hard-coded silently.
 - `openai_models.py` — the OpenAI-direct reader + judge (real, paid). Key from the
   `OPENAI_API_KEY` env var; never hard-coded.
-- `mock_models.py` — the free, offline mock reader + judge for the local smoke path.
+- `mock_models.py` — the free, offline mock reader + judge for the local smoke path, plus
+  the null judge that `--mode retrieval` wires in place of a judge whose verdict it discards.
+- `../_modes.py` — the `--mode` table: what each mode makes real, whether it may write a
+  result row, and whether it emits a retrieval log. A combination that cannot produce a
+  publishable run is rejected where the table is built.
+- `../retrieval_diff.py` — compares two retrieval logs, so a memory change can be screened
+  without paying for a reader.
 - `official_reader.py` — the **upstream-verbatim** reader: the official CoT prompt +
   the context assembly (round-expansion, chronological re-sort, JSON history
   formatting, tiktoken truncation). Pin recorded in `READER_UPSTREAM.md`.
