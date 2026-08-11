@@ -48,7 +48,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with: { python-version: "3.12", cache: "pip" }
       - run: pip install -e ".[dev,engrava]"
       # Every Python directory in the repository, not a subset: the directories left out of
@@ -61,7 +61,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with: { python-version: "3.12", cache: "pip" }
       - run: pip install -e ".[dev,engrava]"
       # NOT yet `integrations/`: bringing it under --strict needs the untyped upstream
@@ -77,7 +77,7 @@ jobs:
         python-version: ["3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with: { python-version: "${{ matrix.python-version }}", cache: "pip" }
       # Install the engrava extra so the engrava-gated suite (the docs reproduce-example
       # execution test, plus the AMB / LongMemEval-V2 integration tests) actually runs
@@ -99,7 +99,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with: { python-version: "3.12", cache: "pip" }
       # Install the package NON-editable so its third-party dependencies land in
       # the environment, then uninstall the self-package before auditing. An
@@ -126,7 +126,7 @@ jobs:
     runs-on: ubuntu-latest   # ALWAYS runs (result-row/leaderboard validity always matters)
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with: { python-version: "3.12", cache: "pip" }
       - run: pip install -e ".[dev]"
       - run: python scripts/validate_results.py
