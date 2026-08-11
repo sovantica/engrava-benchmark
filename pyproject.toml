@@ -33,7 +33,7 @@ dependencies = [
 # The `embeddings-local` extra pulls sentence-transformers so the `local:` embedder
 # (used by the free `run.py --smoke` docs path) works without a paid API key.
 engrava = [
-    "engrava[embeddings-local]==0.5.0",
+    "engrava[embeddings-local]==0.6.0",
     "aiosqlite>=0.20",
 ]
 # The OpenAI-direct reader + judge for a real (paid) canonical run.
