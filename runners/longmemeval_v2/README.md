@@ -25,7 +25,14 @@ export LME_V2_HARNESS_DIR=/path/to/LongMemEval-V2   # or pass --harness-dir
 
 Run it with that checkout's own environment. It carries multimodal prompt-build dependencies this
 repository does not declare, so a run from an environment lacking them fails during prompt
-assembly — after the embedding work is already done and paid for.
+assembly — after the embedding work is already done and paid for. The runner puts this repository
+on `sys.path` itself, so it does not need to be installed into that environment.
+
+**Install the memory shim into the harness first.** The harness loads Engrava through
+`memory_modules/engrava_memory.py`, which this repository owns but does not vendor into your
+checkout — see [the integration's README](../../integrations/longmemeval_v2/README.md) for the
+copy step. A stale copy is the failure to watch for: it fails deep inside a run, after the
+retrieval work, with an error about the memory backend rather than about the copy.
 
 ## Modes
 

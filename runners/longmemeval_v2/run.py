@@ -34,6 +34,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+# Allow running both as a module and as a script (`python runners/longmemeval_v2/run.py`):
+# the latter needs the repo root on sys.path so the `runners` package resolves. This runner
+# is deliberately invoked with the UPSTREAM harness's interpreter — the harness subprocess
+# inherits it via `sys.executable` — and that interpreter has no reason to have this project
+# installed, so without the bootstrap the documented invocation fails on import.
+if __package__ in (None, ""):  # pragma: no cover - script-invocation bootstrap
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
 from runners import _modes, retrieval_diff
 from runners._modes import EmbedderKind, ModeSpec, RunMode
 from runners.longmemeval_v2.retrieval_log import extract_retrieval_log
