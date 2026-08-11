@@ -44,7 +44,7 @@ if "memory_bench" not in sys.modules:
     sys.modules["memory_bench.memory"] = _mb_memory
     sys.modules["memory_bench.memory.base"] = _mb_base
 
-from integrations.amb_vectorize.engrava_provider import (  # noqa: E402
+from integrations.amb_vectorize.engrava_provider import (
     EngravaMemoryProvider,
     ProviderError,
 )
@@ -93,7 +93,7 @@ def provider(monkeypatch: pytest.MonkeyPatch) -> EngravaMemoryProvider:
     """A provider on the offline fake embedder (no network, no download)."""
     monkeypatch.setattr(
         "integrations.amb_vectorize.engrava_provider._create_embedding_provider",
-        lambda: _FakeEmbedder(),
+        _FakeEmbedder,
     )
     prov = EngravaMemoryProvider(k=10)
     try:
@@ -122,7 +122,9 @@ def test_ingest_and_retrieve_returns_original_document(provider: EngravaMemoryPr
 
 def test_banks_isolate_users(provider: EngravaMemoryProvider) -> None:
     """A query in one user's bank never returns another user's documents."""
-    provider.ingest([FakeDoc(id="a1", content="Alice keeps her notes about mercury.", user_id="alice")])
+    provider.ingest(
+        [FakeDoc(id="a1", content="Alice keeps her notes about mercury.", user_id="alice")]
+    )
     provider.ingest([FakeDoc(id="b1", content="Bob keeps his notes about mercury.", user_id="bob")])
 
     alice_docs, _ = provider.retrieve("mercury notes", k=5, user_id="alice")
@@ -133,8 +135,12 @@ def test_banks_isolate_users(provider: EngravaMemoryProvider) -> None:
 
 def test_shared_bank_distinct_from_named_shared_user(provider: EngravaMemoryProvider) -> None:
     """``user_id=None`` and the literal ``user_id="_shared"`` map to different banks."""
-    provider.ingest([FakeDoc(id="none", content="Vector clocks order distributed events.", user_id=None)])
-    provider.ingest([FakeDoc(id="named", content="Vector clocks order distributed events.", user_id="_shared")])
+    provider.ingest(
+        [FakeDoc(id="none", content="Vector clocks order distributed events.", user_id=None)]
+    )
+    provider.ingest(
+        [FakeDoc(id="named", content="Vector clocks order distributed events.", user_id="_shared")]
+    )
 
     none_docs, _ = provider.retrieve("vector clocks", k=5, user_id=None)
     named_docs, _ = provider.retrieve("vector clocks", k=5, user_id="_shared")
@@ -148,7 +154,11 @@ def test_empty_documents_are_skipped(provider: EngravaMemoryProvider) -> None:
     provider.ingest(
         [
             FakeDoc(id="blank", content="   \n\t ", user_id="u1"),
-            FakeDoc(id="real", content="Photosynthesis converts light into chemical energy.", user_id="u1"),
+            FakeDoc(
+                id="real",
+                content="Photosynthesis converts light into chemical energy.",
+                user_id="u1",
+            ),
         ]
     )
     docs, _ = provider.retrieve("photosynthesis light energy", k=5, user_id="u1")
@@ -181,7 +191,9 @@ def test_cleanup_is_idempotent(provider: EngravaMemoryProvider) -> None:
     provider.cleanup()  # second call must be a no-op, not a crash
 
 
-def test_builtin_deterministic_backend_ingests_and_retrieves(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_builtin_deterministic_backend_ingests_and_retrieves(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """The shim's own ``deterministic`` embedding backend supports ingest AND retrieve.
 
     Uses the real ``ENGRAVA_AMB_EMBED_BACKEND=deterministic`` path (not the fake),
@@ -191,7 +203,9 @@ def test_builtin_deterministic_backend_ingests_and_retrieves(monkeypatch: pytest
     monkeypatch.setenv("ENGRAVA_AMB_EMBED_BACKEND", "deterministic")
     prov = EngravaMemoryProvider(k=10)
     try:
-        prov.ingest([FakeDoc(id="d1", content="Neptune is the eighth planet from the sun.", user_id="u1")])
+        prov.ingest(
+            [FakeDoc(id="d1", content="Neptune is the eighth planet from the sun.", user_id="u1")]
+        )
         docs, _ = prov.retrieve("Neptune eighth planet", k=5, user_id="u1")
         assert {d.id for d in docs} == {"d1"}
     finally:

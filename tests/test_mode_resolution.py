@@ -280,7 +280,9 @@ def test_main_mode_retrieval_never_invokes_the_judge(
     judge = _RecordingJudge()
     _patch_offline(monkeypatch, _NeutralAdapter())
     monkeypatch.setattr(
-        runner, "build_reader_judge", lambda _config, *, models: (MockReader(), judge)
+        runner,
+        "build_reader_judge",
+        lambda _config, *, models=None: (MockReader(), judge),  # noqa: ARG005 - signature parity
     )
 
     rc = runner.main(
@@ -306,7 +308,9 @@ def test_main_mode_score_still_invokes_the_judge(
     judge = _RecordingJudge()
     _patch_offline(monkeypatch, _NeutralAdapter())
     monkeypatch.setattr(
-        runner, "build_reader_judge", lambda _config, *, models: (MockReader(), judge)
+        runner,
+        "build_reader_judge",
+        lambda _config, *, models=None: (MockReader(), judge),  # noqa: ARG005 - signature parity
     )
 
     rc = runner.main(
