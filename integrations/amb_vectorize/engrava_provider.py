@@ -82,6 +82,7 @@ class _EmbeddingProvider(Protocol):
     """Minimal async embedding-provider contract used by the provider."""
 
     model_name: str
+    dimension: int
 
     async def embed(self, text: str) -> list[float]:
         """Embed a single query string.

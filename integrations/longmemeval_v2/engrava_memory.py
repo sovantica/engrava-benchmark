@@ -48,9 +48,15 @@ _T = TypeVar("_T")
 
 
 class _EmbeddingProvider(Protocol):
-    """Minimal async embedding provider contract used by the adapter."""
+    """The embedding provider contract this adapter passes to engrava.
+
+    Mirrors the members ``EmbeddingProviderProtocol`` requires. Declaring fewer than engrava
+    reads is how a provider becomes non-conformant while every local type check still passes:
+    the omission is accepted here and only surfaces inside a retrieval call.
+    """
 
     model_name: str
+    dimension: int
 
     async def embed(self, text: str) -> list[float]:
         """Embed one text string."""

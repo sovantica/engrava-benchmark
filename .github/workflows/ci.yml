@@ -51,8 +51,10 @@ jobs:
       - uses: actions/setup-python@v6
         with: { python-version: "3.12", cache: "pip" }
       - run: pip install -e ".[dev,engrava]"
-      - run: ruff check adapters runners scripts
-      - run: ruff format --check adapters runners scripts
+      # Every Python directory in the repository, not a subset: the directories left out of
+      # this list were the ones nothing checked, which is where defects accumulated.
+      - run: ruff check adapters integrations runners scripts tests
+      - run: ruff format --check adapters integrations runners scripts tests
   typecheck:
     needs: changes
     if: needs.changes.outputs.code == 'true'
@@ -62,6 +64,9 @@ jobs:
       - uses: actions/setup-python@v6
         with: { python-version: "3.12", cache: "pip" }
       - run: pip install -e ".[dev,engrava]"
+      # NOT yet `integrations/`: bringing it under --strict needs the untyped upstream
+      # harness bases stubbed or scoped first, and a gate that is known to fail is worse
+      # than a narrow one. Tracked as follow-up work.
       - run: mypy --strict adapters scripts
   test:
     needs: changes
