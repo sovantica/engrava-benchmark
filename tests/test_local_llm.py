@@ -348,9 +348,22 @@ def test_answer_empty_content_guard_returns_empty_string() -> None:
     assert reader_empty.answer("q", "ctx") == ""
 
 
-def test_main_ollama_dry_run_no_dataset(capsys: pytest.CaptureFixture[str]) -> None:
-    # --models ollama with no dataset exits before network/backend construction.
+def test_main_ollama_dry_run_no_dataset(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """``--models ollama`` with no dataset exits before any backend is constructed.
+
+    The no-dataset branch is forced rather than assumed. :func:`_resolve_dataset` consults the
+    CLI, then ``ENGRAVA_BENCH_LONGMEMEVAL_S``, then a repo-local cache — so on any machine where
+    the dataset has been downloaded this test would sail past the branch it means to exercise and
+    into real backend construction, which is a network call and a required credential. Pointing
+    both sources at nothing keeps the test hermetic and machine-independent.
+    """
+    monkeypatch.delenv(runner.DEFAULT_DATASET_ENV, raising=False)
+    monkeypatch.setattr(runner, "DEFAULT_DATASET_PATH", tmp_path / "absent.json")
+
     rc = runner.main(["--config", str(CONFIG), "--models", "ollama"])
+
     assert rc == 2
     out = capsys.readouterr().out
     assert "models=ollama" in out
