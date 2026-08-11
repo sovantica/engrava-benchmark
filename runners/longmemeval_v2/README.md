@@ -36,8 +36,15 @@ retrieval work, with an error about the memory backend rather than about the cop
 
 ## Modes
 
-The modes mean what they mean in `runners/longmemeval/README.md`. Two notes specific to this
+The modes mean what they mean in `runners/longmemeval/README.md`. Three notes specific to this
 runner:
+
+- **Cheap does not mean quick here.** The mode table in that README reads cost as LLM spend, and on
+  that axis `smoke` and `plumbing` are free. On wall clock they are not: the upstream harness loads
+  the whole `trajectories.jsonl` on every run — currently about **1.2 GB** — regardless of how many
+  questions you asked for. A two-question `smoke` therefore takes minutes, and on a loaded machine
+  considerably longer. It is a wiring check, not a fast one; if it seems to hang, check the load
+  before assuming it has.
 
 - **`retrieval`** is the mode this wrapper exists for: real embeddings, no reader, and a ranked
   retrieval log written next to the harness output. It is how an Engrava change is screened for a

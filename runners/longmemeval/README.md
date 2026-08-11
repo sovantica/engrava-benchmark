@@ -102,7 +102,7 @@ If `--dataset` is omitted, the runner resolves the dataset from
 embedder, the reader/judge backend and the emission default together, so the four combinations
 that make sense are named instead of assembled by hand from five flags.
 
-| Mode | Embedder | Reader / judge | Cost | Emits a result row | Emits a retrieval log |
+| Mode | Embedder | Reader / judge | Cost (LLM spend) | Emits a result row | Emits a retrieval log |
 |---|---|---|---|---|---|
 | `smoke` | local | mock | free | no | no |
 | `plumbing` | local | mock | free | no | no |
@@ -114,6 +114,10 @@ that make sense are named instead of assembled by hand from five flags.
 carry the config's canonical labels over output that no reader produced. `smoke` and `plumbing`
 resolve identically here; `smoke` additionally runs against the tiny in-repo fixture, so it is the
 fast wiring check and `plumbing` is the same pipeline over the real dataset.
+
+The cost column is **LLM spend**, not wall clock. On this benchmark the free modes are also quick —
+`smoke` runs against a tiny in-repo fixture — but that does not carry to every runner; the
+LongMemEval-V2 wrapper notes its own timing in [its README](../longmemeval_v2/README.md#modes).
 
 `retrieval` exists for comparing two builds without paying a reader: it retrieves for real, throws
 the reader's answer away, judges nothing, and writes a ranked retrieval log. Two such logs are
