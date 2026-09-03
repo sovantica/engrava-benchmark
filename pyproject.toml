@@ -103,9 +103,17 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
-addopts = "--cov --cov-report=term-missing --cov-fail-under=90 --strict-markers"
+addopts = "--cov --cov-report=term-missing --cov-fail-under=90 --strict-markers -m 'not external'"
+# `-m 'not external'` is what makes "never runs in the default selection" true rather than
+# aspirational: registering a marker does not deselect it. A CLI `-m` overrides this one, so
+# `pytest -m external` still runs them on purpose.
+# Set alongside the addopts flag, not instead of it. Measured 2026-09-01 in isolated venvs
+# on one unregistered marker: pytest 8.4.2 honours the flag and ignores this key, 9.0.3
+# does the reverse, 9.1.1 honours both. This project's floor is pytest>=8.0, so neither
+# setting alone enforces across the range it admits.
+strict_markers = true
 # A test's level is what it touches, not how long it takes. Unmarked = unit: in-process,
-# any I/O confined to tmp_path. `--strict-markers` makes a typo an error rather than a
+# any I/O confined to tmp_path. Strict marker checking makes a typo an error rather than a
 # silently unselected test.
 markers = [
     "integration: touches real local resources (an on-disk database, a subprocess of this project's own CLI)",
