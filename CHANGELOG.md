@@ -5,6 +5,10 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Track the engrava 0.7.0 line; the packaged extra and the documented install now name the same version.
+
 ## [0.3.0] - 2026-08-11
 
 ### Added

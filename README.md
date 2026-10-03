@@ -41,7 +41,7 @@ cd engrava-benchmark
 # 2. set up + pin the engrava version named by the result you want to reproduce
 python -m venv .venv && source .venv/bin/activate
 make install
-pip install "engrava==0.6.0"   # <- must equal the engrava_version in the result row
+pip install "engrava==0.7.0"   # <- must equal the engrava_version in the result row
 
 # 3. point the runner at the dataset this result pins: the CLEANED LongMemEval-S split
 #    from Hugging Face `xiaowu0162/longmemeval-cleaned` (file: longmemeval_s_cleaned.json),
